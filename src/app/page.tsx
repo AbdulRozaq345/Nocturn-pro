@@ -494,7 +494,7 @@ export default function Home() {
 
       {/* PLAYER BAR */}
       {currentTrack && (
-        <footer className="fixed bottom-0 left-0 right-0 h-24 bg-black border-t border-[#121212] px-4 flex items-center justify-between z-50I">
+        <footer className="fixed bottom-0 left-0 right-0 h-24 bg-black border-t border-[#121212] px-4 flex items-center justify-between z-50">
           {/* INFO KIRI */}
           <div className="flex items-center gap-4 w-[30%]">
             <div className="w-14 h-14 bg-[#282828] rounded flex items-center justify-center">
