@@ -1,6 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Home, Library, Heart, ListMusic, Search, LogOut } from "lucide-react";
+import {
+  Home,
+  Library,
+  Heart,
+  ListMusic,
+  Search,
+  LogOut,
+  Menu,
+  X,
+} from "lucide-react";
 import api from "@/lib/axios";
 import { logout } from "@/lib/auth-service";
 
@@ -9,7 +18,8 @@ export default function Sidebar() {
     [],
   );
   const [user, setUser] = useState<any>(null);
-const [isProfileOpen, setIsProfileOpen] = useState(false); // State baru
+  const [isProfileOpen, setIsProfileOpen] = useState(false); // State baru
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // State for mobile drawer
   const profileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -19,7 +29,10 @@ const [isProfileOpen, setIsProfileOpen] = useState(false); // State baru
 
     // 2. Klik di luar buat nutup dropdown
     const handleClickOutside = (event: MouseEvent) => {
-      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+      if (
+        profileRef.current &&
+        !profileRef.current.contains(event.target as Node)
+      ) {
         setIsProfileOpen(false);
       }
     };
@@ -54,6 +67,22 @@ const [isProfileOpen, setIsProfileOpen] = useState(false); // State baru
 
   return (
     <>
+      {/* Mobile Hamburger Button */}
+      <button
+        onClick={() => setIsMobileMenuOpen(true)}
+        className="md:hidden fixed top-[1.1rem] left-4 z-[50] text-[#72fe8f] bg-[#0e0e0e]/80 p-[0.35rem] rounded-sm backdrop-blur-md border border-white/10"
+      >
+        <Menu size={16} />
+      </button>
+
+      {/* Mobile Backdrop */}
+      {isMobileMenuOpen && (
+        <div
+          className="md:hidden fixed inset-0 bg-black/60 z-[60] backdrop-blur-sm"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Mobile Bottom Navigation Bar (Hidden on md up) */}
       <div className="md:hidden fixed bottom-20 left-0 w-full h-14 bg-[#0e0e0e] border-t border-white/5 z-40 flex items-center justify-between px-6">
         <Link
@@ -85,8 +114,20 @@ const [isProfileOpen, setIsProfileOpen] = useState(false); // State baru
         </Link>
       </div>
 
-      {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col h-full py-8 bg-[#0e0e0e] text-gray-500 w-64 flex-shrink-0 z-50 border-r border-white/5">
+      {/* Desktop & Mobile Drawer Sidebar */}
+      <aside
+        className={`fixed md:relative inset-y-0 left-0 flex flex-col h-full py-8 bg-[#0e0e0e] text-gray-500 w-64 flex-shrink-0 z-[70] border-r border-white/5 transform transition-transform duration-300 ease-in-out md:translate-x-0 md:flex ${
+          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        {/* Close Button Mobile */}
+        <button
+          onClick={() => setIsMobileMenuOpen(false)}
+          className="md:hidden absolute top-4 right-4 text-gray-400 hover:text-white"
+        >
+          <X size={20} />
+        </button>
+
         <div className="px-8 mb-10 flex items-center justify-between group/brand relative">
           <div className="flex flex-col">
             <h1 className="text-xl font-bold tracking-tighter text-[#72fe8f]">
@@ -99,44 +140,47 @@ const [isProfileOpen, setIsProfileOpen] = useState(false); // State baru
 
           {/* PP GOOGLE SECTION */}
           {user && (
-          <div className="relative" ref={profileRef}>
-            {/* BUTTON CLICK */}
-            <button
-              onClick={() => setIsProfileOpen(!isProfileOpen)}
-              className={`w-8 h-8 rounded-full border overflow-hidden transition-all shadow-[0_0_15px_rgba(114,254,143,0.1)] 
+            <div className="relative" ref={profileRef}>
+              {/* BUTTON CLICK */}
+              <button
+                onClick={() => setIsProfileOpen(!isProfileOpen)}
+                className={`w-8 h-8 rounded-full border overflow-hidden transition-all shadow-[0_0_15px_rgba(114,254,143,0.1)] 
                 ${isProfileOpen ? "border-[#72fe8f] scale-110" : "border-white/10 hover:border-[#72fe8f]/50"}`}
-            >
-              <img
-                src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}&background=191919&color=72fe8f&bold=true`}
-                alt="User"
-                className="w-full h-full object-cover"
-              />
-            </button>
+              >
+                <img
+                  src={
+                    user.avatar ||
+                    `https://ui-avatars.com/api/?name=${user.name}&background=191919&color=72fe8f&bold=true`
+                  }
+                  alt="User"
+                  className="w-full h-full object-cover"
+                />
+              </button>
 
-            {/* DROPDOWN LOGOUT (Muncul berdasarkan State) */}
-            {isProfileOpen && (
-              <div className="absolute right-0 top-full mt-2 w-40 bg-[#121212] border border-white/10 rounded shadow-2xl py-1 z-[60] animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-150">
-                <div className="px-3 py-2 border-b border-white/5 mb-1">
-                  <p className="text-[10px] text-white font-bold truncate uppercase">
-                    {user.name}
-                  </p>
-                  <p className="text-[8px] text-gray-500 font-mono truncate lowercase">
-                    {user.email}
-                  </p>
+              {/* DROPDOWN LOGOUT (Muncul berdasarkan State) */}
+              {isProfileOpen && (
+                <div className="absolute right-0 top-full mt-2 w-40 bg-[#121212] border border-white/10 rounded shadow-2xl py-1 z-[60] animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-150">
+                  <div className="px-3 py-2 border-b border-white/5 mb-1">
+                    <p className="text-[10px] text-white font-bold truncate uppercase">
+                      {user.name}
+                    </p>
+                    <p className="text-[8px] text-gray-500 font-mono truncate lowercase">
+                      {user.email}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      if (confirm("LOGOUT_SESSION? 🐈‍🤣")) logout();
+                    }}
+                    className="w-full text-left px-3 py-2 text-[10px] text-red-500 hover:bg-red-500/10 flex items-center gap-2 transition-colors font-mono font-bold"
+                  >
+                    <LogOut size={12} /> TERMINATE_SESSION
+                  </button>
                 </div>
-                
-                <button
-                  onClick={() => {
-                    if (confirm("LOGOUT_SESSION? 🐈‍🤣")) logout();
-                  }}
-                  className="w-full text-left px-3 py-2 text-[10px] text-red-500 hover:bg-red-500/10 flex items-center gap-2 transition-colors font-mono font-bold"
-                >
-                  <LogOut size={12} /> TERMINATE_SESSION
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+            </div>
+          )}
         </div>
 
         <div className="px-6 mb-8">

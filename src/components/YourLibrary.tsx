@@ -14,6 +14,12 @@ const YourLibrary = () => {
   const [loading, setLoading] = useState(true);
 
   const fetchPlaylists = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await api.get("/api/playlists");
       // Cek struktur response Laravel lo.
@@ -21,8 +27,13 @@ const YourLibrary = () => {
       // atau ada status success-nya, sesuaikan di sini:
       const dataFetched = res.data.data || res.data;
       setPlaylists(Array.isArray(dataFetched) ? dataFetched : []);
-    } catch (err) {
-      console.error("Gagal narik playlist, bosquu! 🗿");
+    } catch (err: any) {
+      if (err.response?.status !== 401) {
+        /* eslint-disable */ console.error(
+          "Gagal narik playlist, bosquu! 🗿",
+          err,
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -99,7 +110,7 @@ const YourLibrary = () => {
                 alt={pl.name}
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
               />
-              
+
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                 <div className="h-12 w-12 bg-[#72fe8f] rounded-sm flex items-center justify-center text-[#002a0c]">
                   <span
