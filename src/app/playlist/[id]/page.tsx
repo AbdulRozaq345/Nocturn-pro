@@ -45,7 +45,7 @@ export default function PlaylistPage() {
 
         setPlaylist(data);
       } catch (err: any) {
-        console.error("Gagal ambil detail playlist di Marlboro Server! í°ˆâ€í´£", err);
+        console.error("Gagal ambil detail playlist di Marlboro Server! ï¿½ï¿½ï¿½â€ï¿½ï¿½ï¿½", err);
         setError(err.response?.data?.message || err.message || "Endpoint Error");
       }
     };
