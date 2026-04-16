@@ -128,3 +128,6 @@
     @apply font-sans;
   }
 }
+
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #191919; border-radius: 2px; }
