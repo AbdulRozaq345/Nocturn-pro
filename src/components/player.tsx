@@ -76,7 +76,11 @@ export default function Player() {
     if (!currentTrack || tracks.length === 0) return;
     setHistory((prev) => [...prev, currentTrack]);
 
-    if (isShuffle) {
+    const currentIndex = tracks.findIndex((t) => t.id === currentTrack.id);
+
+    // Cek apakah ini lagu terakhir di playlist (baik shuffle nyala/mati)
+    // Berdasarkan request: kalau semua lagu yang ada di playlist udah diputar baru ganti lagu cak yang ada di database
+    if (currentIndex === tracks.length - 1) {
       try {
         const res = await api.get("/api/tracks");
         const API_BASE =
@@ -114,14 +118,15 @@ export default function Player() {
       } catch (err) {
         console.error("Gagal get lagu random dari database:", err);
       }
+    }
 
+    if (isShuffle) {
       const randomIndex = Math.floor(Math.random() * tracks.length);
       setCurrentTrack(tracks[randomIndex]);
       setIsPlaying(true);
       return;
     }
 
-    const currentIndex = tracks.findIndex((t) => t.id === currentTrack.id);
     const nextIndex = (currentIndex + 1) % tracks.length;
     setCurrentTrack(tracks[nextIndex]);
   };
@@ -288,7 +293,11 @@ export default function Player() {
           <Shuffle
             onClick={toggleShuffle}
             size={16}
-            className={`hidden md:block cursor-pointer transition-all ${isShuffle ? "text-[#72fe8f] drop-shadow-[0_0_8px_rgba(114,254,143,0.5)]" : "hover:text-white"}`}
+            className={`cursor-pointer transition-all ${
+              isShuffle
+                ? "text-[#72fe8f] drop-shadow-[0_0_8px_rgba(114,254,143,0.5)]"
+                : "hover:text-white"
+            } ${isShuffle ? "scale-110" : "scale-100"}`}
           />
           <SkipBack
             onClick={playPrevious}
@@ -310,18 +319,21 @@ export default function Player() {
             size={20}
             className="hover:text-white cursor-pointer"
           />
-          <div
-            onClick={toggleRepeat}
-            className="hidden md:block relative cursor-pointer"
-          >
+          <div onClick={toggleRepeat} className="relative cursor-pointer group">
             <Repeat
               size={16}
-              className={`transition-all ${repeatMode !== "none" ? "text-[#72fe8f]" : "hover:text-white"}`}
+              className={`transition-all ${
+                repeatMode !== "none" ? "text-[#72fe8f]" : "hover:text-white"
+              }`}
             />
             {repeatMode === "one" && (
-              <span className="absolute -top-1 -right-1 text-[8px] bg-[#72fe8f] text-black font-bold px-1 rounded-full scale-75">
+              <span className="absolute -top-1.5 -right-1.5 text-[7px] bg-[#72fe8f] text-black font-bold px-1 rounded-full scale-90 border border-[#0e0e0e]">
                 1
               </span>
+            )}
+            {/* Indikator Titik kalau mode 'all' aktif biar makin pro */}
+            {repeatMode === "all" && (
+              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-[#72fe8f] rounded-full shadow-[0_0_5px_#72fe8f]"></span>
             )}
           </div>
         </div>
