@@ -53,8 +53,16 @@ const YourLibrary = () => {
 
       // Refresh biar data paling update dari server masuk
       fetchPlaylists();
-    } catch (err) {
-      alert("Gagal bikin playlist, puki bener! 🐈‍🤣");
+    } catch (err: any) {
+      console.error("====== DEBUG BIKIN PLAYLIST ======");
+      console.error("STATUS:", err.response?.status);
+      console.error("DATA:", err.response?.data);
+      console.error("MESSAGE:", err.message);
+      console.error("FULL ERR:", err);
+      console.error("==================================");
+      alert(
+        `Gagal bikin playlist, puki bener! 🐈‍🤣\nStatus: ${err.response?.status || "Network Error"}\nSilakan cek tab Console F12 buat detailnya.`,
+      );
     }
   };
 
