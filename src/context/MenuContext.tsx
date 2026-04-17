@@ -27,6 +27,7 @@ export function MenuProvider({ children }: { children: ReactNode }) {
   );
   const [screenWidth, setScreenWidth] = useState(0);
   const [userPlaylists, setUserPlaylists] = useState<any[]>([]);
+  const [isSubMenuOpen, setIsSubMenuOpen] = useState(false);
 
   const fetchPlaylists = async () => {
     try {
@@ -70,6 +71,7 @@ export function MenuProvider({ children }: { children: ReactNode }) {
     setActiveTrack(track);
     setLocation(loc);
     setIsOpen(true);
+    setIsSubMenuOpen(false); // Reset submenu setiap kali menu dibuka
   };
 
   const handleLike = async () => {
@@ -88,13 +90,21 @@ export function MenuProvider({ children }: { children: ReactNode }) {
 
   const handleAddToPlaylist = async (playlistId: number) => {
     try {
+      console.log("Data activeTrack yang dikirim boss:", activeTrack);
+      console.log("track_id yang dikirim:", activeTrack.id);
+
       await api.post(`/api/playlists/${playlistId}/add-track`, {
         track_id: activeTrack.id,
       });
+      console.log("SENDING TRACK TO PLAYLIST", activeTrack);
+
       alert(`Berhasil masukin ${activeTrack.title} ke playlist!`);
       setIsOpen(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      alert(
+        `Error bosqu: ${JSON.stringify(err.response?.data?.errors || err.response?.data?.message || err.message)}\nTRACK ID YANG DIKIRIM: ${activeTrack?.id}`,
+      );
     }
   };
 
@@ -103,10 +113,13 @@ export function MenuProvider({ children }: { children: ReactNode }) {
     if (!name) return;
     try {
       const res = await api.post("/api/playlists", { name });
-      setUserPlaylists([...userPlaylists, res.data]);
+      setUserPlaylists([...userPlaylists, res.data.data || res.data]);
       alert("Playlist baru jadi, bosquu!");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      alert(
+        `Gagal bikin playlist: ${err.response?.data?.message || err.message}`,
+      );
     }
   };
 
@@ -140,51 +153,59 @@ export function MenuProvider({ children }: { children: ReactNode }) {
           <div
             className="absolute bg-[#181818] border border-white/10 rounded shadow-2xl w-64 py-1.5 text-gray-200 animate-in zoom-in-95 duration-75 origin-bottom-right"
             style={{ top: pos.y, left: pos.x }}
+            onClick={(e) => e.stopPropagation()} // Supaya ga ketutup pas dalam menu di klik
           >
             {/* ADD TO PLAYLIST */}
-            <div className="relative group/sub">
-              <button className="w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-white/10 transition-colors">
+            <div className="relative">
+              <button
+                onClick={() => setIsSubMenuOpen(!isSubMenuOpen)}
+                className="w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-white/10 transition-colors"
+              >
                 <div className="flex items-center gap-3 font-medium">
                   <span>➕</span> Add to playlist
                 </div>
-                <span className="text-[10px] opacity-50">◀</span>
+                <span className="text-[10px] opacity-50">
+                  {isSubMenuOpen ? "▼" : "◀"}
+                </span>
               </button>
-              <div
-                className={`absolute top-0 hidden group-hover/sub:block w-64 bg-[#181818] border border-white/10 rounded shadow-2xl py-1.5 animate-in slide-in-from-right-1 duration-100
-                ${pos.x < 300 ? "left-full ml-0.5" : "right-full mr-0.5"}`}
-              >
-                <div className="px-3 py-1 mb-1">
-                  <input
-                    type="text"
-                    placeholder="Find a playlist"
-                    className="w-full bg-[#282828] border-none outline-none rounded-sm px-2 py-1 text-[11px] placeholder:text-gray-500 font-mono"
-                  />
-                </div>
-                <button
-                  onClick={handleCreatePlaylist}
-                  className="w-full text-left px-3 py-2 text-xs hover:bg-white/10 flex items-center gap-3"
+              {isSubMenuOpen && (
+                <div
+                  className={`absolute top-0 w-64 bg-[#181818] border border-white/10 rounded shadow-2xl py-1.5 animate-in slide-in-from-right-1 duration-100
+                  ${pos.x < 300 ? "left-full ml-0.5" : "right-full mr-0.5"}`}
                 >
-                  <span>➕</span> New playlist
-                </button>
-                <div className="h-[1px] bg-white/5 my-1" />
-                <div className="max-h-60 overflow-y-auto custom-scrollbar">
-                  {userPlaylists.length > 0 ? (
-                    userPlaylists.map((pl) => (
-                      <button
-                        key={pl.id}
-                        onClick={() => handleAddToPlaylist(pl.id)}
-                        className="w-full text-left px-3 py-2 text-xs hover:bg-white/10"
-                      >
-                        {pl.name}
-                      </button>
-                    ))
-                  ) : (
-                    <div className="px-3 py-4 text-center text-[10px] text-gray-500 italic font-mono">
-                      Empty playlist. 🐈‍🤣
-                    </div>
-                  )}
+                  <div className="px-3 py-1 mb-1">
+                    <input
+                      type="text"
+                      placeholder="Find a playlist"
+                      className="w-full bg-[#282828] border-none outline-none rounded-sm px-2 py-1 text-[11px] placeholder:text-gray-500 font-mono"
+                    />
+                  </div>
+                  <button
+                    onClick={handleCreatePlaylist}
+                    className="w-full text-left px-3 py-2 text-xs hover:bg-white/10 flex items-center gap-3"
+                  >
+                    <span>➕</span> New playlist
+                  </button>
+                  <div className="h-[1px] bg-white/5 my-1" />
+                  <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                    {userPlaylists.length > 0 ? (
+                      userPlaylists.map((pl) => (
+                        <button
+                          key={pl.id}
+                          onClick={() => handleAddToPlaylist(pl.id)}
+                          className="w-full text-left px-3 py-2 text-xs hover:bg-white/10"
+                        >
+                          {pl.name}
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-3 py-4 text-center text-[10px] text-gray-500 italic font-mono">
+                        Empty playlist. 🐈‍🤣
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* LIKE / UNLIKE */}

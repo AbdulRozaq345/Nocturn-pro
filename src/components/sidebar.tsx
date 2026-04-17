@@ -70,7 +70,7 @@ export default function Sidebar() {
       {/* Mobile Hamburger Button */}
       <button
         onClick={() => setIsMobileMenuOpen(true)}
-        className="md:hidden fixed top-[1.1rem] left-4 z-[50] text-[#72fe8f] bg-[#0e0e0e]/80 p-[0.35rem] rounded-sm backdrop-blur-md border border-white/10"
+        className="md:hidden fixed top-[1.1rem] left-4 z-[999] text-[#72fe8f] bg-[#0e0e0e]/80 p-[0.35rem] rounded-sm backdrop-blur-md border border-white/10"
       >
         <Menu size={16} />
       </button>
@@ -78,13 +78,13 @@ export default function Sidebar() {
       {/* Mobile Backdrop */}
       {isMobileMenuOpen && (
         <div
-          className="md:hidden fixed inset-0 bg-black/60 z-[60] backdrop-blur-sm"
+          className="md:hidden fixed inset-0 bg-black/60 z-[998] backdrop-blur-sm"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
 
       {/* Mobile Bottom Navigation Bar (Hidden on md up) */}
-      <div className="md:hidden fixed bottom-20 left-0 w-full h-14 bg-[#0e0e0e] border-t border-white/5 z-40 flex items-center justify-between px-6">
+      <div className="md:hidden fixed bottom-20 left-0 w-full h-14 bg-[#0e0e0e] border-t border-white/5 z-[60] flex items-center justify-between px-6">
         <Link
           href="/"
           className="flex flex-col items-center gap-1 text-gray-400 hover:text-[#72fe8f] focus:text-[#72fe8f]"
@@ -116,7 +116,7 @@ export default function Sidebar() {
 
       {/* Desktop & Mobile Drawer Sidebar */}
       <aside
-        className={`fixed md:relative inset-y-0 left-0 flex flex-col h-full py-8 bg-[#0e0e0e] text-gray-500 w-64 flex-shrink-0 z-[70] border-r border-white/5 transform transition-transform duration-300 ease-in-out md:translate-x-0 md:flex ${
+        className={`fixed md:relative inset-y-0 left-0 flex flex-col h-full pt-8 pb-24 md:pb-32 bg-[#0e0e0e] text-gray-500 w-64 flex-shrink-0 z-[999] md:z-50 border-r border-white/5 transform transition-transform duration-300 ease-in-out md:translate-x-0 md:flex ${
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -159,7 +159,7 @@ export default function Sidebar() {
 
               {/* DROPDOWN LOGOUT (Muncul berdasarkan State) */}
               {isProfileOpen && (
-                <div className="absolute right-0 top-full mt-2 w-40 bg-[#121212] border border-white/10 rounded shadow-2xl py-1 z-[60] animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-150">
+                <div className="absolute right-0 top-full mt-2 w-40 bg-[#121212] border border-white/10 rounded shadow-2xl py-1 z-[998] animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-150">
                   <div className="px-3 py-2 border-b border-white/5 mb-1">
                     <p className="text-[10px] text-white font-bold truncate uppercase">
                       {user.name}

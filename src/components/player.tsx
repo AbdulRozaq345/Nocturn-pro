@@ -231,7 +231,7 @@ export default function Player() {
   }, [currentTrack]);
 
   return (
-    <footer className="fixed bottom-0 left-0 w-full h-20 md:h-24 bg-[#0e0e0e]/90 backdrop-blur-xl flex flex-row items-center px-4 md:px-12 justify-between z-50 border-t border-white/5 shadow-2xl gap-2 md:gap-4">
+    <footer className="fixed bottom-0 left-0 w-full h-20 md:h-24 bg-[#0e0e0e]/90 backdrop-blur-xl flex flex-row items-center px-4 md:px-12 justify-between z-[100] border-t border-white/5 shadow-2xl gap-2 md:gap-4">
       {currentTrack?.audio_url && (
         <audio
           key={currentTrack.audio_url}
