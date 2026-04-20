@@ -1,4 +1,6 @@
-"use client";
+const fs = require('fs');
+
+const content = `"use client";
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
@@ -15,8 +17,8 @@ export default function Topbar() {
     const savedUser = localStorage.getItem("user");
     if (savedUser) setUser(JSON.parse(savedUser));
 
-    const handleClickOutside = (event: MouseEvent) => {
-      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+    const handleClickOutside = (event) => {
+      if (profileRef.current && !profileRef.current.contains(event.target)) {
         setIsProfileOpen(false);
       }
     };
@@ -50,12 +52,14 @@ export default function Topbar() {
           <div className="relative" ref={profileRef}>
             <button 
               onClick={() => setIsProfileOpen(!isProfileOpen)}
-              className={`block w-9 h-9 rounded-full overflow-hidden border-2 p-0.5 transition-all ${isProfileOpen ? "border-[#72fe8f] scale-110" : "border-[#72fe8f]/20 hover:border-[#72fe8f]/50"}`}
+              className={\`block w-9 h-9 rounded-full overflow-hidden border-2 p-0.5 transition-all \${isProfileOpen ? "border-[#72fe8f] scale-110" : "border-[#72fe8f]/20 hover:border-[#72fe8f]/50"}\`}
             >
               {user ? (
-                <img className="text-transparent w-full h-full object-cover rounded-full bg-white/5 animate-pulse text-[0px]" src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}&background=191919&color=72fe8f&bold=true`}
+                <img
+                  src={user.avatar || \`https://ui-avatars.com/api/?name=\${user.name}&background=191919&color=72fe8f&bold=true\`}
                   alt="Profile"
-                  />
+                  className="w-full h-full object-cover rounded-full"
+                />
               ) : (
                 <div className="w-full h-full rounded-full bg-white/10 animate-pulse"></div>
               )}
@@ -74,7 +78,7 @@ export default function Topbar() {
                 </div>
                 <button
                   onClick={() => {
-                    if (confirm("LOGOUT_SESSION? ï¿½ï¿½ï¿½â€ï¿½ï¿½ï¿½")) logout();
+                    if (confirm("LOGOUT_SESSION? í°ˆâ€í´£")) logout();
                   }}
                   className="w-full text-left px-3 py-2 text-[10px] text-red-500 hover:bg-red-500/10 flex items-center gap-2 transition-colors font-mono font-bold"
                 >
@@ -91,3 +95,7 @@ export default function Topbar() {
     </>
   );
 }
+`;
+
+fs.writeFileSync('src/components/topbar.tsx', content);
+console.log("Updated topbar.tsx");

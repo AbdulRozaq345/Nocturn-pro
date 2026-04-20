@@ -7,6 +7,7 @@ import {
   useEffect,
 } from "react";
 import api from "@/lib/axios"; // Import instance axios kita yang udah di-set base URL-nya
+import { usePlayer } from "@/context/PlayerContext";
 
 interface MenuContextType {
   showMenu: (
@@ -40,9 +41,49 @@ export function MenuProvider({ children }: { children: ReactNode }) {
 
   // Ambil lebar layar pas di client side doang
   useEffect(() => {
-    setScreenWidth(window.innerWidth);
+    // Jangan sync setState, ambil langsung dari window tanpa state
     fetchPlaylists();
   }, []);
+
+  // Import player context untuk sync like state
+  const { tracks, setTracks, currentTrack, setCurrentTrack } = usePlayer();
+
+  const refreshTracks = async () => {
+    try {
+      const res = await api.get("/api/tracks");
+      const resData = res.data;
+      const rawData = resData?.data || resData;
+
+      if (Array.isArray(rawData)) {
+        const API_BASE =
+          api.defaults.baseURL || "https://panel.nexxacodeid.site";
+        const updatedTracks = rawData.map((track) => ({
+          ...track,
+          title: track.trackTitle || "Unknown Title",
+          artist: track.artistName || "Unknown Artist",
+          cover_url: track.playlistCover
+            ? `${API_BASE}/storage/${track.playlistCover}`
+            : "/default-cover.png",
+          audio_url:
+            track.fileName || track.file_name
+              ? `${API_BASE}/storage/music/${track.fileName || track.file_name}`
+              : null,
+          duration: track.durationSeconds
+            ? `${Math.floor(track.durationSeconds / 60)
+                .toString()
+                .padStart(
+                  2,
+                  "0",
+                )}:${(track.durationSeconds % 60).toString().padStart(2, "0")}`
+            : "00:00",
+          is_liked: track.is_liked || false,
+        }));
+        setTracks(updatedTracks);
+      }
+    } catch (err) {
+      console.error("Error refreshing tracks:", err);
+    }
+  };
 
   const showMenu = (
     e: React.MouseEvent,
@@ -54,7 +95,7 @@ export function MenuProvider({ children }: { children: ReactNode }) {
 
     const menuWidth = 256;
     const menuHeight = 240; // Ditambahin dikit biar aman
-    const screenWidth = window.innerWidth;
+    const screenWidthVal = window.innerWidth;
     const screenHeight = window.innerHeight;
 
     // --- LOGIKA X (DI SEBELAH KIRI) ---
@@ -76,15 +117,42 @@ export function MenuProvider({ children }: { children: ReactNode }) {
 
   const handleLike = async () => {
     if (!activeTrack) return;
-    try {
-      // Endpoint Laravel lo biasanya pake toggle
-      await api.post(`/api/tracks/${activeTrack.id}/like`);
+    const trackId = activeTrack.id;
+    const isCurrentlyLiked = activeTrack.is_liked;
 
-      // Update local state biar UI langsung berubah (Optimistic Update)
-      setActiveTrack({ ...activeTrack, is_liked: !activeTrack.is_liked });
-      console.log("Status like berubah! 🐈‍🤣");
-    } catch (err) {
-      alert("Gagal nge-like, cek koneksi Laravel lo!");
+    // OPTIMISTIC UPDATE: Ubah state duluan tanpa nunggu backend!
+    // Biar UI langsung nyala/mati dan lagu masuk/keluar dari Liked Songs saat itu juga
+    const updatedTracks = tracks.map((t: any) =>
+      t.id === trackId ? { ...t, is_liked: !isCurrentlyLiked } : t,
+    );
+    setTracks(updatedTracks);
+
+    // Update juga currentTrack kalau lagu yang dilike/unlike kebetulan lagi diputar
+    if (currentTrack?.id === trackId) {
+      setCurrentTrack({ ...currentTrack, is_liked: !isCurrentlyLiked });
+    }
+
+    // Update state menu itu sendiri biar checkmark di menu langsung ganti
+    setActiveTrack((prev: any) =>
+      prev ? { ...prev, is_liked: !isCurrentlyLiked } : prev,
+    );
+
+    setIsOpen(false);
+
+    try {
+      if (isCurrentlyLiked) {
+        // Panggil endpoint baru khusus unlike via DELETE (dari fixing backend)
+        await api.delete(`/api/tracks/${trackId}/like`);
+      } else {
+        // Panggil endpoint baru khusus like via POST (dari fixing backend)
+        await api.post(`/api/tracks/${trackId}/like`);
+      }
+      console.log(
+        "Status like berhasil di-sync ke backend via endpoint baru! 🐈‍🤣",
+      );
+    } catch (err: any) {
+      console.error("Like error dr backend, tap UI udah ke-update kok:", err);
+      // Kalau ngga mau refresh gpp, UI udah jalan
     }
   };
 
@@ -165,14 +233,11 @@ export function MenuProvider({ children }: { children: ReactNode }) {
                   <span>➕</span> Add to playlist
                 </div>
                 <span className="text-[10px] opacity-50">
-                  {isSubMenuOpen ? "▼" : "◀"}
+                  {isSubMenuOpen ? "▼" : "▶"}
                 </span>
               </button>
               {isSubMenuOpen && (
-                <div
-                  className={`absolute top-0 w-64 bg-[#181818] border border-white/10 rounded shadow-2xl py-1.5 animate-in slide-in-from-right-1 duration-100
-                  ${pos.x < 300 ? "left-full ml-0.5" : "right-full mr-0.5"}`}
-                >
+                <div className="w-full bg-[#111111] py-1.5 animate-in fade-in slide-in-from-top-1 duration-100 border-y border-white/5 mb-1">
                   <div className="px-3 py-1 mb-1">
                     <input
                       type="text"

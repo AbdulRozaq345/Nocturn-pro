@@ -7,19 +7,19 @@ import {
   ListMusic,
   Search,
   LogOut,
-  Menu,
-  X,
+  Plus,
 } from "lucide-react";
 import api from "@/lib/axios";
 import { logout } from "@/lib/auth-service";
+
+
 
 export default function Sidebar() {
   const [playlists, setPlaylists] = useState<{ id: number; name: string }[]>(
     [],
   );
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<Record<string, any> | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false); // State baru
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // State for mobile drawer
   const profileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -42,10 +42,7 @@ export default function Sidebar() {
   }, []);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem("user");
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
+
 
     const fetchSidebarPlaylists = async () => {
       const token = localStorage.getItem("token");
@@ -67,67 +64,37 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Mobile Hamburger Button */}
-      <button
-        onClick={() => setIsMobileMenuOpen(true)}
-        className="md:hidden fixed top-[1.1rem] left-4 z-[999] text-[#72fe8f] bg-[#0e0e0e]/80 p-[0.35rem] rounded-sm backdrop-blur-md border border-white/10"
-      >
-        <Menu size={16} />
-      </button>
-
-      {/* Mobile Backdrop */}
-      {isMobileMenuOpen && (
-        <div
-          className="md:hidden fixed inset-0 bg-black/60 z-[998] backdrop-blur-sm"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
-
       {/* Mobile Bottom Navigation Bar (Hidden on md up) */}
-      <div className="md:hidden fixed bottom-20 left-0 w-full h-14 bg-[#0e0e0e] border-t border-white/5 z-[60] flex items-center justify-between px-6">
+      <div className="md:hidden fixed bottom-0 left-0 w-full h-16 bg-[#0a0a0a] border-t border-[#262626] z-[60] flex items-center justify-around px-2 pb-1">
         <Link
           href="/"
-          className="flex flex-col items-center gap-1 text-gray-400 hover:text-[#72fe8f] focus:text-[#72fe8f]"
+          className="flex flex-col items-center justify-center gap-1 w-1/3 text-white"
         >
-          <Home size={20} />
-          <span className="text-[10px] uppercase font-mono tracking-widest">
-            Home
-          </span>
+          <Home size={22} fill="white" />
+          <span className="text-[9px] font-sans tracking-wide">Home</span>
+        </Link>
+        <Link
+          href="/search"
+          className="flex flex-col items-center justify-center gap-1 w-1/3 text-[#a1a1aa] hover:text-white transition-colors"
+        >
+          <Search size={22} />
+          <span className="text-[9px] font-sans tracking-wide">Cari</span>
         </Link>
         <Link
           href="/YourLibrary"
-          className="flex flex-col items-center gap-1 text-gray-400 hover:text-[#72fe8f] focus:text-[#72fe8f]"
+          className="flex flex-col items-center justify-center gap-1 w-1/3 text-[#a1a1aa] hover:text-white transition-colors"
         >
-          <Library size={20} />
-          <span className="text-[10px] uppercase font-mono tracking-widest">
-            Library
+          <Library size={22} />
+          <span className="text-[9px] font-sans tracking-wide">
+            Koleksi Kamu
           </span>
         </Link>
-        <Link
-          href="/liked-songs"
-          className="flex flex-col items-center gap-1 text-gray-400 hover:text-[#72fe8f] focus:text-[#72fe8f]"
-        >
-          <Heart size={20} />
-          <span className="text-[10px] uppercase font-mono tracking-widest">
-            Liked
-          </span>
-        </Link>
+        
+        
       </div>
 
-      {/* Desktop & Mobile Drawer Sidebar */}
-      <aside
-        className={`fixed md:relative inset-y-0 left-0 flex flex-col h-full pt-8 pb-24 md:pb-32 bg-[#0e0e0e] text-gray-500 w-64 flex-shrink-0 z-[999] md:z-50 border-r border-white/5 transform transition-transform duration-300 ease-in-out md:translate-x-0 md:flex ${
-          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        {/* Close Button Mobile */}
-        <button
-          onClick={() => setIsMobileMenuOpen(false)}
-          className="md:hidden absolute top-4 right-4 text-gray-400 hover:text-white"
-        >
-          <X size={20} />
-        </button>
-
+      {/* Desktop Sidebar (Hidden on Mobile) */}
+      <aside className="hidden md:flex flex-col h-full pt-8 pb-32 bg-[#0e0e0e] text-gray-500 w-64 flex-shrink-0 z-50 border-r border-white/5 relative">
         <div className="px-8 mb-10 flex items-center justify-between group/brand relative">
           <div className="flex flex-col">
             <h1 className="text-xl font-bold tracking-tighter text-[#72fe8f]">
@@ -137,7 +104,7 @@ export default function Sidebar() {
               </span>
             </h1>
           </div>
-
+ 
           {/* PP GOOGLE SECTION */}
           {user && (
             <div className="relative" ref={profileRef}>
@@ -147,14 +114,12 @@ export default function Sidebar() {
                 className={`w-8 h-8 rounded-full border overflow-hidden transition-all shadow-[0_0_15px_rgba(114,254,143,0.1)] 
                 ${isProfileOpen ? "border-[#72fe8f] scale-110" : "border-white/10 hover:border-[#72fe8f]/50"}`}
               >
-                <img
-                  src={
+                <img className="text-transparent w-full h-full object-cover bg-white/5 animate-pulse text-[0px]" src={
                     user.avatar ||
                     `https://ui-avatars.com/api/?name=${user.name}&background=191919&color=72fe8f&bold=true`
                   }
                   alt="User"
-                  className="w-full h-full object-cover"
-                />
+                  />
               </button>
 
               {/* DROPDOWN LOGOUT (Muncul berdasarkan State) */}
@@ -243,7 +208,7 @@ function NavItem({
   href = "#",
   active = false,
 }: {
-  icon: any;
+  icon: React.ReactNode;
   label: string;
   href?: string;
   active?: boolean;

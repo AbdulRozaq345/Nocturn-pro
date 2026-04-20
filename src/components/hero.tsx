@@ -16,9 +16,7 @@ export default function Hero({ currentTrack }: HeroProps) {
     <section className="relative hidden md:block px-12 pt-8 pb-12 overflow-hidden">
       {/* Background Image: Ambil dari cover_url database lo */}
       <div className="absolute inset-0 z-0">
-        <img
-          className="w-full h-full object-cover scale-105 blur-sm"
-          src={
+        <img className="text-transparent w-full h-full object-cover scale-105 blur-sm bg-white/5 animate-pulse text-[0px]" src={
             currentTrack.cover_url ? `${process.env.NEXT_PUBLIC_BASE_URL}/storage/covers/${currentTrack.cover_url}` : "https://placeholder.com"
           }
           alt={currentTrack.title}

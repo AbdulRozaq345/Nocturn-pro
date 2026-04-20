@@ -1,6 +1,6 @@
 "use client";
 
-import { Play, Clock, Music } from "lucide-react";
+import { Play, Clock, } from "lucide-react";
 import { useGlobalMenu } from "@/context/MenuContext";
 
 export default function TrackList({
@@ -30,7 +30,10 @@ export default function TrackList({
           tracks.map((track, index) => (
             <div
               key={track.id || index}
-              onClick={() => onPlay(track)}
+              onClick={(e) => {
+                e.preventDefault();
+                onPlay(track);
+              }}
               onContextMenu={(e) => showMenu(e, track, "general")}
               // GRID: Di mobile cuma 2 kolom, di desktop balik ke 4 kolom
               className="grid grid-cols-[32px_1fr] md:grid-cols-[48px_1fr_120px_80px] items-center px-4 py-3 rounded-sm hover:bg-white/5 transition-all group cursor-pointer border-b border-white/[0.02] gap-2"
@@ -50,9 +53,10 @@ export default function TrackList({
               <div className="flex items-center gap-3 md:gap-4 overflow-hidden min-w-0">
                 <div className="w-8 h-8 md:w-10 md:h-10 bg-[#121212] rounded-sm flex-shrink-0 border border-white/5 flex items-center justify-center relative overflow-hidden group-hover:border-[#72fe8f]/30 transition-colors">
                   <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent animate-pulse" />
-                  <Music
-                    size={14}
-                    className="text-gray-700 group-hover:text-[#72fe8f] transition-colors relative z-10"
+                  <img
+                    src={track.albumArt || "/nocturn.avif"}
+                    className="text-gray-700 group-hover:text-[#72fe8f] transition-colors w-full h-full object-cover"
+                    alt={track.title || "Track Cover"}
                   />
                 </div>
 
