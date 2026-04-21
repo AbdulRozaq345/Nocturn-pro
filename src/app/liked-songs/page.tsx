@@ -4,11 +4,12 @@ import React, { useEffect } from "react";
 import { Play, Shuffle, Download, MoreHorizontal, Heart } from "lucide-react";
 import api from "@/lib/axios";
 import { usePlayer } from "@/context/PlayerContext";
-import TrackList from "@/components/TrackList";
+import { useGlobalMenu } from "@/context/MenuContext";
 
 export default function LikedSongs() {
   const { tracks, setTracks, setCurrentTrack, setIsPlaying, currentTrack } =
     usePlayer();
+  const { showMenu } = useGlobalMenu();
 
   useEffect(() => {
     if (tracks.length === 0) {
@@ -136,9 +137,51 @@ export default function LikedSongs() {
       {/* Tracklist Table */}
       <div className="px-4 md:px-8 relative z-10">
         <div className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/5 p-4 md:p-6 mb-20">
-          <TrackList tracks={likedTracks} onPlay={handlePlayTrack} />
-
-          {likedTracks.length === 0 && (
+          {likedTracks.length > 0 ? (
+            <div className="flex flex-col gap-3">
+              {likedTracks.map((track: any, i: number) => (
+                <div
+                  key={track.id || i}
+                  onClick={() => {
+                    handlePlayTrack(track);
+                  }}
+                  onContextMenu={(e) => showMenu(e, track, "general")}
+                  className="bg-gradient-to-br from-[#141414]/90 to-[#0f0f0f]/80 p-4 rounded-xl flex items-center gap-4 hover:bg-[#262626] transition-colors cursor-pointer group shadow-[0_4px_24px_-4px_rgba(0,0,0,0.5)] border border-white/5"
+                >
+                  <div className="w-12 h-12 rounded-lg bg-[#0a0a0a] flex items-center justify-center shadow-inner overflow-hidden flex-shrink-0">
+                    <img
+                      src={
+                        track.albumArt ||
+                        "/nocturn.avif"
+                      }
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform"
+                      alt={track.title || "Cover"}
+                    />
+                  </div>
+                  <div className="flex-1 overflow-hidden">
+                    <h3 className="font-bold text-white text-base truncate">
+                      {track.title}
+                    </h3>
+                    <p className="text-[10px] font-mono text-[#a1a1aa] mt-1 uppercase truncate">
+                      {track.artist}
+                    </p>
+                  </div>
+                  <span className="text-xs font-mono text-[#a1a1aa] hidden md:block">
+                    {track.duration || "00:00"}
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      showMenu(e, track, "general");
+                    }}
+                    className="text-[#a1a1aa] hover:text-[#72fe8f] transition-colors p-1"
+                  >
+                    <span className="material-symbols-outlined">more_vert</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
             <div className="py-24 text-center">
               <Heart
                 className="mx-auto text-gray-800 mb-4 opacity-20"

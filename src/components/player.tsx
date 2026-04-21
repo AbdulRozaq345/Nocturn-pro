@@ -82,45 +82,6 @@ export default function Player() {
 
     const currentIndex = tracks.findIndex((t) => t.id === currentTrack.id);
 
-    // Cek apakah ini lagu terakhir di playlist (baik shuffle nyala/mati)
-    // Berdasarkan request: kalau semua lagu yang ada di playlist udah diputar baru ganti lagu cak yang ada di database
-    if (currentIndex === tracks.length - 1) {
-      try {
-        const res = await api.get("/api/tracks");
-        const API_BASE =
-          api.defaults.baseURL || "https://panel.nexxacodeid.site";
-        const rawData = res.data?.data || res.data;
-
-        if (Array.isArray(rawData) && rawData.length > 0) {
-          const dbTracks = rawData.map((track: any) => ({
-            ...track,
-            title: track.trackTitle || track.title || "Unknown Title",
-            artist: track.artistName || track.artist || "Unknown Artist",
-            audio_url:
-              track.fileName || track.file_name
-                ? `${API_BASE}/storage/music/${track.fileName || track.file_name}`
-                : track.audio_url || null,
-            duration: track.durationSeconds
-              ? `${Math.floor(track.durationSeconds / 60)
-                  .toString()
-                  .padStart(
-                    2,
-                    "0",
-                  )}:${(track.durationSeconds % 60).toString().padStart(2, "0")}`
-              : track.duration || "00:00",
-          }));
-
-          const randomIndex = Math.floor(Math.random() * dbTracks.length);
-          setCurrentTrack(dbTracks[randomIndex]);
-          setTracks(dbTracks); // Update queue tracks dengan data dari database
-          setIsPlaying(true);
-          return;
-        }
-      } catch (err) {
-        console.error("Gagal get lagu random dari database:", err);
-      }
-    }
-
     if (isShuffle) {
       const randomIndex = Math.floor(Math.random() * tracks.length);
       setCurrentTrack(tracks[randomIndex]);
@@ -128,8 +89,55 @@ export default function Player() {
       return;
     }
 
+    // Jika lagu terakhir, loop balik ke awal atau ambil dari random database tanpa delay menghentikan fungsi keseluruhan (secara async)
+    if (currentIndex === tracks.length - 1) {
+      if (repeatMode === "all") {
+        setCurrentTrack(tracks[0]);
+        setIsPlaying(true);
+        return;
+      } else {
+        // Otomatis fetch lagu baru tapi untuk sisa playlistnya, jangan hentikan respons UI
+        // Sementara itu kita play lagu pertama aja dulu biar gak kerasa ada delay jeda nunggu API
+        setCurrentTrack(tracks[0]);
+        setIsPlaying(true);
+
+        // Fetch diam-diam di background dan perbarui antrean saat selesai
+        api
+          .get("/api/tracks")
+          .then((res) => {
+            const API_BASE =
+              api.defaults.baseURL || "https://panel.nexxacodeid.site";
+            const rawData = res.data?.data || res.data;
+            if (Array.isArray(rawData) && rawData.length > 0) {
+              const dbTracks = rawData.map((track: any) => ({
+                ...track,
+                title: track.trackTitle || track.title || "Unknown Title",
+                artist: track.artistName || track.artist || "Unknown Artist",
+                audio_url:
+                  track.fileName || track.file_name
+                    ? `${API_BASE}/storage/music/${track.fileName || track.file_name}`
+                    : track.audio_url || null,
+                duration: track.durationSeconds
+                  ? `${Math.floor(track.durationSeconds / 60)
+                      .toString()
+                      .padStart(
+                        2,
+                        "0",
+                      )}:${(track.durationSeconds % 60).toString().padStart(2, "0")}`
+                  : track.duration || "00:00",
+              }));
+              // Gabung sisa lagu dari server
+              setTracks([...tracks, ...dbTracks]);
+            }
+          })
+          .catch((err) => console.error("Gagal get lagu random", err));
+        return;
+      }
+    }
+
     const nextIndex = (currentIndex + 1) % tracks.length;
     setCurrentTrack(tracks[nextIndex]);
+    setIsPlaying(true);
   };
 
   const playPrevious = () => {
@@ -201,20 +209,18 @@ export default function Player() {
   };
 
   useEffect(() => {
+    // Tandai bahwa komponen sudah mount, jadi perubahan berikutnya tidak dianggap initial mount lagi
+    isInitialMount.current = false;
+  }, []);
+
+  useEffect(() => {
     const audio = audioRef.current;
 
     if (currentTrack?.audio_url && audio) {
       setProgress(0);
       setCurrentTime(0);
 
-      // Jangan otomatis putar saat browser baru direfresh
-      if (isInitialMount.current) {
-        isInitialMount.current = false;
-        setIsPlaying(false);
-        return;
-      }
-
-      // Langsung play saat currentTrack ganti (dipencet dari UI sesudah refresh)
+      // Langsung play saat currentTrack ganti
       setTimeout(() => {
         if (audioRef.current) {
           audioRef.current
@@ -233,11 +239,7 @@ export default function Player() {
 
   return (
     <>
-      <footer
-        className="fixed z-[100] transition-all 
-                   bottom-[72px] left-2 w-[calc(100%-16px)] h-14 bg-[#1a1a1a] rounded-lg shadow-2xl overflow-hidden
-                   md:bottom-0 md:left-0 md:w-full md:h-24 md:bg-[#0e0e0e]/90 md:backdrop-blur-xl md:rounded-none md:border-t md:border-white/5"
-      >
+      <footer className="fixed z-[100] transition-all bottom-[72px] left-2 w-[calc(100%-16px)] h-14 bg-[#1a1a1a] rounded-lg shadow-2xl overflow-hidden md:bottom-0 md:left-0 md:w-full md:h-24 md:bg-[#0e0e0e]/90 md:backdrop-blur-xl md:rounded-none md:border-t md:border-white/5">
         {currentTrack?.audio_url && (
           <audio
             key={currentTrack.audio_url}
@@ -266,11 +268,13 @@ export default function Player() {
           <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
             <div className="w-10 h-10 rounded-md overflow-hidden bg-[#2a2a2a] flex-shrink-0 relative shadow-sm">
               {currentTrack ? (
-                <img className="text-transparent w-full h-full object-cover bg-white/5 animate-pulse text-[0px]" src={"/nocturn.avif"}
+                <img
+                  className="text-transparent w-full h-full object-cover bg-white/5 animate-pulse text-[0px]"
+                  src={"/nocturn.avif"}
                   alt="Cover"
                 />
               ) : (
-                <img 
+                <img
                   src={"/nocturn.avif"}
                   className="text-gray-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
                 />
@@ -336,7 +340,9 @@ export default function Player() {
             <div className="w-14 h-14 bg-[#121212] rounded-md overflow-hidden border border-white/5 flex-shrink-0 items-center justify-center relative">
               <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent animate-pulse" />
               {currentTrack ? (
-                <img className="text-transparent w-full h-full object-cover relative z-10 bg-white/5 animate-pulse text-[0px]" src={"/nocturn.avif"}
+                <img
+                  className="text-transparent w-full h-full object-cover relative z-10 bg-white/5 animate-pulse text-[0px]"
+                  src={"/nocturn.avif"}
                   alt="Cover"
                 />
               ) : (

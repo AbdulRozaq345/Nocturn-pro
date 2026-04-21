@@ -50,9 +50,9 @@ const YourLibrary = () => {
     );
 
   return (
-    <div className="flex-1 pb-40 w-full px-4 md:px-12 bg-transparent min-h-full text-white flex flex-col relative font-sans pt-6">
+    <div className="flex-1  top-20 md:top-0 pb-40 w-full px-4 md:px-12 bg-transparent min-h-full text-white flex flex-col relative font-sans pt-6">
       {/* Tab Nav - Lebih Slim */}
-      <div className="sticky mb-8 top-0 z-30 bg-[#0a0a0a]/90 backdrop-blur-md py-3 border-b border-white/5 -mx-4 px-4 md:-mx-12 md:px-12">
+      <div className="sticky mb-8 md:top-0 z-30 bg-[#0a0a0a]/90 backdrop-blur-md py-3 border-b border-white/5 -mx-4 px-4 md:-mx-12 md:px-12">
         <div className="flex gap-2 font-mono text-[0.65rem] font-bold uppercase tracking-widest">
           <button className="px-4 py-1.5 bg-[#72fe8f] text-black rounded-sm shadow-[0_0_15px_rgba(114,254,143,0.2)]">
             Playlists

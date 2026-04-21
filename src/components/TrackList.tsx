@@ -29,7 +29,7 @@ export default function TrackList({
         {Array.isArray(tracks) &&
           tracks.map((track, index) => (
             <div
-              key={track.id || index}
+              key={`track-${track.id || "new"}-${index}`}
               onClick={(e) => {
                 e.preventDefault();
                 onPlay(track);
