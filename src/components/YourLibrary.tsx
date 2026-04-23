@@ -13,6 +13,8 @@ interface Playlist {
 const YourLibrary = () => {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newPlaylistName, setNewPlaylistName] = useState("");
 
   const fetchPlaylists = async () => {
     try {
@@ -31,10 +33,11 @@ const YourLibrary = () => {
   }, []);
 
   const handleCreatePlaylist = async () => {
-    const playlistName = prompt("DATABASE_NAME_INPUT:");
-    if (!playlistName) return;
+    if (!newPlaylistName.trim()) return;
     try {
-      await api.post("/api/playlists", { name: playlistName });
+      await api.post("/api/playlists", { name: newPlaylistName });
+      setIsModalOpen(false);
+      setNewPlaylistName("");
       fetchPlaylists();
     } catch (err: any) {
       console.error(err);
@@ -56,9 +59,6 @@ const YourLibrary = () => {
         <div className="flex gap-2 font-mono text-[0.65rem] font-bold uppercase tracking-widest">
           <button className="px-4 py-1.5 bg-[#72fe8f] text-black rounded-sm shadow-[0_0_15px_rgba(114,254,143,0.2)]">
             Playlists
-          </button>
-          <button className="px-4 py-1.5 bg-[#1a1a1a] text-gray-500 rounded-sm border border-white/5 hover:border-[#72fe8f]/40 transition-all">
-            Albums
           </button>
         </div>
       </div>
@@ -93,9 +93,6 @@ const YourLibrary = () => {
               <span className="px-1 text-[8px] border border-[#72fe8f]/30 text-[#72fe8f] font-mono">
                 FIXED
               </span>
-              <p className="text-[10px] font-mono text-gray-500 uppercase tracking-wider">
-                428 Tracks
-              </p>
             </div>
           </div>
         </Link>
@@ -141,18 +138,55 @@ const YourLibrary = () => {
             TERMINAL_CURATOR
           </p>
           <p className="text-xs italic text-gray-400 tracking-wide font-serif leading-relaxed">
-            "The system finds rhythm where others only see code."
+            &quot;The system finds rhythm where others only see code.&quot;
           </p>
         </div>
       </div>
 
       {/* Floating Action Button - Lebih Nyatu */}
       <button
-        onClick={handleCreatePlaylist}
+        onClick={() => setIsModalOpen(true)}
         className="fixed bottom-32 right-12 md:right-16 w-14 h-14 bg-[#72fe8f] text-black rounded-full shadow-[0_0_20px_rgba(114,254,143,0.4)] flex items-center justify-center hover:scale-110 active:scale-90 transition-all z-40"
       >
         <Plus size={24} />
       </button>
+
+      {/* Modal Buat Playlist */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-[#141414] border border-[#72fe8f]/20 rounded-xl p-6 w-full max-w-sm shadow-[0_0_40px_rgba(114,254,143,0.1)]">
+            <h2 className="text-xl font-black italic text-[#72fe8f] mb-4 uppercase tracking-tighter">
+              BUAT PLAYLIST BARU
+            </h2>
+            <input
+              type="text"
+              value={newPlaylistName}
+              onChange={(e) => setNewPlaylistName(e.target.value)}
+              placeholder="Nama Playlist"
+              className="w-full bg-[#0a0a0a] border border-white/10 rounded-md p-3 text-sm text-white focus:outline-none focus:border-[#72fe8f]/50 font-mono mb-6 placeholder:text-gray-600"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleCreatePlaylist();
+                if (e.key === "Escape") setIsModalOpen(false);
+              }}
+            />
+            <div className="flex justify-end gap-3 font-mono text-xs uppercase tracking-widest">
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+              >
+                BATAL
+              </button>
+              <button
+                onClick={handleCreatePlaylist}
+                className="px-4 py-2 bg-[#72fe8f] text-black font-bold rounded-sm hover:opacity-90 transition-opacity"
+              >
+                SIMPAN
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

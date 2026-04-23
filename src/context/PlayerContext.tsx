@@ -9,6 +9,7 @@ interface PlayerContextType {
   setCurrentTrack: (track: any) => void;
   isPlaying: boolean;
   setIsPlaying: (p: boolean) => void;
+  togglePlay: () => void;
 }
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
@@ -17,6 +18,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [tracks, setTracks] = useState<any[]>([]);
   const [currentTrack, setCurrentTrack] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+
+  const togglePlay = () => {
+    setIsPlaying((prev) => !prev);
+  };
 
   return (
     <PlayerContext.Provider
@@ -27,6 +32,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setCurrentTrack,
         isPlaying,
         setIsPlaying,
+        togglePlay,
       }}
     >
       {children}

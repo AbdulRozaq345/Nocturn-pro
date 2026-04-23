@@ -13,6 +13,8 @@ import {
 import { usePlayer } from "@/context/PlayerContext";
 import { useGlobalMenu } from "@/context/MenuContext";
 
+import Link from "next/link";
+
 // helper for duration
 const formatDuration = (seconds: number) => {
   if (!seconds) return "00:00";
@@ -72,16 +74,17 @@ export default function SearchPage() {
         MULAI_JELAJAHI
       </h2>
       <div className="grid grid-cols-2 gap-4">
-        {["Musik", "Podcast", "Acara Langsung", "K-Pop"].map((cat, i) => (
-          <div
+        {["Musik"].map((cat, i) => (
+          <Link
+            href={`/${cat.toLowerCase()}`}
             key={i}
-            className="h-24 rounded-sm bg-gradient-to-br from-white/10 to-transparent border border-white/5 p-3 relative overflow-hidden group cursor-pointer"
+            className="h-24 rounded-sm bg-gradient-to-br from-white/10 to-transparent border border-white/5 p-3 relative overflow-hidden group cursor-pointer block"
           >
             <span className="font-black italic uppercase text-xs tracking-widest">
               {cat}
             </span>
             <div className="absolute -right-2 -bottom-2 w-12 h-12 bg-[#72fe8f]/20 rotate-12 group-hover:scale-110 transition-transform" />
-          </div>
+          </Link>
         ))}
       </div>
     </div>
@@ -165,6 +168,7 @@ export default function SearchPage() {
                   <div className="w-12 h-12 rounded-lg bg-[#0a0a0a] flex items-center justify-center overflow-hidden border border-[#72fe8f]/20 relative">
                     <img
                       src={song.albumArt || "/nocturn.avif"}
+                      alt={song.trackTitle || "Album Art"}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform"
                     />
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -221,6 +225,7 @@ export default function SearchPage() {
                   <div className="w-12 h-12 rounded-lg bg-[#0a0a0a] flex items-center justify-center overflow-hidden relative">
                     <img
                       src={song.albumArt || "/nocturn.avif"}
+                      alt={song.trackTitle || "Album Art"}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform"
                     />
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">

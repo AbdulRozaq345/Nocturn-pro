@@ -156,7 +156,13 @@ export default function NocturnPage() {
                     {isPlaying ? "PAUSE" : "PLAY NOW"}
                   </span>
                 </button>
-                <button className="bg-gradient-to-br from-[#141414]/90 to-[#0f0f0f]/80 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.5)] border border-white/5 text-white w-12 h-12 flex items-center justify-center rounded-full active:scale-[0.95] transition-transform hover:bg-white/10">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (currentTrack) showMenu(e, currentTrack, "general");
+                  }}
+                  className="bg-gradient-to-br from-[#141414]/90 to-[#0f0f0f]/80 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.5)] border border-white/5 text-white w-12 h-12 flex items-center justify-center rounded-full active:scale-[0.95] transition-transform hover:bg-white/10"
+                >
                   <span className="material-symbols-outlined">add</span>
                 </button>
               </div>
@@ -173,19 +179,6 @@ export default function NocturnPage() {
               <span className="text-xs font-bold text-[#72fe8f] tracking-wider">
                 24-BIT LOSSLESS
               </span>
-            </div>
-            <div className="flex flex-col items-end gap-1">
-              <span className="text-[10px] font-mono tracking-widest text-[#a1a1aa] uppercase">
-                Global Listeners
-              </span>
-              <div className="flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[14px] text-[#a1a1aa]">
-                  headset
-                </span>
-                <span className="text-xs font-bold text-white tracking-wider">
-                  42.8K ACTIVE
-                </span>
-              </div>
             </div>
           </section>
 
@@ -277,10 +270,12 @@ export default function NocturnPage() {
                     }}
                     className="bg-gradient-to-br from-[#141414]/90 to-[#0f0f0f]/80 p-4 rounded-xl flex items-center gap-4 hover:bg-[#262626] transition-colors cursor-pointer group shadow-[0_4px_24px_-4px_rgba(0,0,0,0.5)] border border-white/5"
                   >
-                    <div className="w-12 h-12 rounded-lg bg-[#0a0a0a] flex items-center justify-center shadow-inner overflow-hidden">
-                      <img src={track.albumArt || "/nocturn.avif"} className="material-symbols-outlined text-[#72fe8f] group-hover:scale-110 transition-transform">
-                        
-                      </img>
+                    <div className="w-12 h-12 rounded-lg bg-[#0a0a0a] flex items-center justify-center shadow-inner overflow-hidden relative">
+                      <img
+                        src={track.albumArt || "/nocturn.avif"}
+                        alt={track.title}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform"
+                      />
                     </div>
                     <div className="flex-1 overflow-hidden">
                       <h3 className="font-bold text-white text-base truncate">

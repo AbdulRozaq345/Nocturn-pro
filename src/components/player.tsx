@@ -195,18 +195,29 @@ export default function Player() {
   };
 
   const togglePlay = () => {
-    if (audioRef.current) {
+    // Kita panggil togglePlay dari context secara implisit via setIsPlaying(!isPlaying)
+    // Tapi karena sudah ada di context, kita hanya perlu ubah state isPlaying-nya.
+    setIsPlaying(!isPlaying);
+  };
+
+  useEffect(() => {
+    // Memastikan pemutar audio (HTMLAudioElement) sinkron dengan state isPlaying di Context
+    if (audioRef.current && currentTrack?.audio_url) {
       if (isPlaying) {
-        audioRef.current.pause();
-        setIsPlaying(false);
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch((err) => {
+            if (err.name !== "AbortError") {
+              console.warn("Autoplay ter-block:", err);
+              setIsPlaying(false);
+            }
+          });
+        }
       } else {
-        audioRef.current
-          .play()
-          .then(() => setIsPlaying(true))
-          .catch(() => setIsPlaying(false));
+        audioRef.current.pause();
       }
     }
-  };
+  }, [isPlaying, currentTrack?.audio_url || ""]);
 
   useEffect(() => {
     // Tandai bahwa komponen sudah mount, jadi perubahan berikutnya tidak dianggap initial mount lagi
@@ -214,42 +225,48 @@ export default function Player() {
   }, []);
 
   useEffect(() => {
-    const audio = audioRef.current;
-
-    if (currentTrack?.audio_url && audio) {
+    if (currentTrack?.audio_url) {
       setProgress(0);
       setCurrentTime(0);
-
-      // Langsung play saat currentTrack ganti
-      setTimeout(() => {
-        if (audioRef.current) {
-          audioRef.current
-            .play()
-            .then(() => {
-              setIsPlaying(true);
-            })
-            .catch((err) => {
-              console.warn("Autoplay ter-block browser:", err);
-              setIsPlaying(false);
-            });
-        }
-      }, 50);
+      setIsPlaying(true);
     }
-  }, [currentTrack]);
+  }, [currentTrack?.audio_url]);
+
+  // Tambahan untuk mendengarkan spasi agar play/pause otomatis
+  useEffect(() => {
+    const handleSpacebar = (e: KeyboardEvent) => {
+      // Abaikan jika user sedang mengetik di input, textarea, dll
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      if (e.code === "Space") {
+        e.preventDefault(); // Cegah halaman scroll ke bawah
+        togglePlay();
+      }
+    };
+
+    window.addEventListener("keydown", handleSpacebar);
+    return () => window.removeEventListener("keydown", handleSpacebar);
+  }, [isPlaying]);
 
   return (
     <>
       <footer className="fixed z-[100] transition-all bottom-[72px] left-2 w-[calc(100%-16px)] h-14 bg-[#1a1a1a] rounded-lg shadow-2xl overflow-hidden md:bottom-0 md:left-0 md:w-full md:h-24 md:bg-[#0e0e0e]/90 md:backdrop-blur-xl md:rounded-none md:border-t md:border-white/5">
-        {currentTrack?.audio_url && (
+        {currentTrack?.audio_url ? (
           <audio
-            key={currentTrack.audio_url}
             ref={audioRef}
             src={currentTrack.audio_url}
             onTimeUpdate={handleTimeUpdate}
             onLoadedMetadata={handleLoadedMetadata}
             onEnded={handleEnded}
           />
-        )}
+        ) : null}
 
         {/* ========== MOBILE LAYOUT ========== */}
         <div

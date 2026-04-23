@@ -166,7 +166,7 @@ export function MenuProvider({ children }: { children: ReactNode }) {
       });
       console.log("SENDING TRACK TO PLAYLIST", activeTrack);
 
-      alert(`Berhasil masukin ${activeTrack.title} ke playlist!`);
+      
       setIsOpen(false);
     } catch (err: any) {
       console.error(err);
