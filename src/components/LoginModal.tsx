@@ -1,11 +1,21 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { login, logout, loginWithGoogle } from "@/lib/auth-service";
 
 export default function LoginModal() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const oauthErrorParam =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("error")
+      : null;
+  const oauthError =
+    oauthErrorParam === "GoogleAuthFailed"
+      ? "Google login gagal di server callback. Cek GOOGLE_REDIRECT_URL, client secret, dan log backend."
+      : oauthErrorParam
+        ? `Google login gagal: ${oauthErrorParam}`
+        : null;
 
   const handleGoogleLogin = async () => {
     setLoading(true);
@@ -59,6 +69,11 @@ export default function LoginModal() {
           <p className="text-xs text-gray-500 mt-2 font-mono italic">
             NexxaCodeID v1.0 - Auth Protocol
           </p>
+          {oauthError && (
+            <p className="mt-3 text-[10px] text-red-400 border border-red-500/20 bg-red-500/10 rounded px-3 py-2 font-mono">
+              {oauthError}
+            </p>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
