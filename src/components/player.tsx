@@ -228,7 +228,7 @@ export default function Player() {
     if (currentTrack?.audio_url) {
       setProgress(0);
       setCurrentTime(0);
-      setIsPlaying(true);
+      // setIsPlaying(true); dihapus agar tidak autoplay saat website pertama kali dibuka
     }
   }, [currentTrack?.audio_url]);
 

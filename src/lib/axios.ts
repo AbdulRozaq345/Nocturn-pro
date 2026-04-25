@@ -1,10 +1,12 @@
 import axios from "axios";
 
 const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "https://panel.nexxacodeid.site";
+  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
+  "https://panel.nexxacodeid.site";
 
 const api = axios.create({
   baseURL: API_BASE,
+  withCredentials: true, // WAJIB BANGET, BOSQUU! Biar Cookie Laravel nempel 🐈‍🤣
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",

@@ -11,8 +11,17 @@ interface Playlist {
 }
 
 const YourLibrary = () => {
-  const [playlists, setPlaylists] = useState<Playlist[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [playlists, setPlaylists] = useState<Playlist[]>(() => {
+    if (typeof window !== "undefined") {
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const cachedTitle = localStorage.getItem(
+        `playlists_${user?.id || "default"}`,
+      );
+      return cachedTitle ? JSON.parse(cachedTitle) : [];
+    }
+    return [];
+  });
+  const [loading, setLoading] = useState(playlists.length === 0);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState("");
 
@@ -20,7 +29,16 @@ const YourLibrary = () => {
     try {
       const res = await api.get("/api/playlists");
       const dataFetched = res.data.data || res.data;
-      setPlaylists(Array.isArray(dataFetched) ? dataFetched : []);
+      const validPlaylists = Array.isArray(dataFetched) ? dataFetched : [];
+      setPlaylists(validPlaylists);
+
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      if (user?.id) {
+        localStorage.setItem(
+          `playlists_${user.id}`,
+          JSON.stringify(validPlaylists),
+        );
+      }
     } catch (err: any) {
       console.error("Gagal narik playlist, bosquu!", err);
     } finally {

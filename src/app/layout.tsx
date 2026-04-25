@@ -4,6 +4,7 @@ import "./globals.css";
 import { MenuProvider } from "@/context/MenuContext";
 import LoginModal from "@/components/LoginModal";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { PlayerProvider } from "@/context/PlayerContext";
 import Sidebar from "@/components/sidebar";
 import Topbar from "@/components/topbar";
@@ -15,11 +16,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const pathname = usePathname();
 
   useEffect(() => {
     const token = localStorage.getItem("token");
     setIsLoggedIn(!!token);
-  }, []);
+  }, [pathname]);
+
+  const isCallbackPage = pathname === "/auth/callback";
 
   return (
     <html lang="en">
@@ -29,7 +33,7 @@ export default function RootLayout({
       <body className="antialiased bg-black text-white selection:bg-[#72fe8f] selection:text-black">
         <PlayerProvider>
           <MenuProvider>
-            {!isLoggedIn && <LoginModal />}
+            {!isLoggedIn && !isCallbackPage && <LoginModal />}
             <div className="flex h-screen overflow-hidden bg-[#0a0a0a] text-white">
               <Sidebar />
               <div className="flex-grow flex flex-col relative overflow-y-auto custom-scrollbar w-full">
