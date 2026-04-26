@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { usePlayer } from "@/context/PlayerContext";
 import { useGlobalMenu } from "@/context/MenuContext";
+import { applyPersistedLikeState } from "@/lib/utils";
 
 import Link from "next/link";
 
@@ -56,23 +57,25 @@ export default function SearchPage() {
           if (res.data && res.data.data) {
             const API_BASE =
               api.defaults.baseURL || "https://panel.nexxacodeid.site";
-            const formattedTracks = res.data.data.map((track: any) => ({
-              ...track,
-              title: track.trackTitle || track.title || "Unknown Title",
-              artist: track.artistName || track.artist || "Unknown Artist",
-              audio_url:
-                track.fileName || track.file_name
-                  ? `${API_BASE}/storage/music/${track.fileName || track.file_name}`
-                  : track.audio_url || null,
-              duration: track.durationSeconds
-                ? `${Math.floor(track.durationSeconds / 60)
-                    .toString()
-                    .padStart(
-                      2,
-                      "0",
-                    )}:${(track.durationSeconds % 60).toString().padStart(2, "0")}`
-                : track.duration || "00:00",
-            }));
+            const formattedTracks = res.data.data
+              .map((track: any) => ({
+                ...track,
+                title: track.trackTitle || track.title || "Unknown Title",
+                artist: track.artistName || track.artist || "Unknown Artist",
+                audio_url:
+                  track.fileName || track.file_name
+                    ? `${API_BASE}/storage/music/${track.fileName || track.file_name}`
+                    : track.audio_url || null,
+                duration: track.durationSeconds
+                  ? `${Math.floor(track.durationSeconds / 60)
+                      .toString()
+                      .padStart(
+                        2,
+                        "0",
+                      )}:${(track.durationSeconds % 60).toString().padStart(2, "0")}`
+                  : track.duration || "00:00",
+              }))
+              .map(applyPersistedLikeState);
             setDatabaseSongs(formattedTracks);
           }
         })

@@ -1,4 +1,5 @@
 import api from "./axios";
+import { clearPersistedLikedTrackIds } from "./utils";
 
 export const initCsrf = async () => {
   await api.get("/sanctum/csrf-cookie");
@@ -19,14 +20,14 @@ export const loginWithGoogle = async () => {
 export const handleGoogleCallback = async () => {
   try {
     // Panggil endpoint backend yang balikin data user/token setelah sukses login Google
-    const res = await api.get("/api/user"); 
-    
+    const res = await api.get("/api/user");
+
     if (res.data) {
       // Simpan ke localStorage biar frontend "sadar" sudah login
       localStorage.setItem("user", JSON.stringify(res.data));
       // Kalau backend lo ngasih token baru di sini, simpen juga:
       if (res.data.token) localStorage.setItem("token", res.data.token);
-      
+
       return res.data;
     }
   } catch (err) {
@@ -55,6 +56,7 @@ export const logout = async () => {
   } catch (err) {
     console.warn("Gagal revoke token di server. 🐈‍🤣");
   } finally {
+    clearPersistedLikedTrackIds();
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     window.location.replace("/"); // Pake replace biar bersih

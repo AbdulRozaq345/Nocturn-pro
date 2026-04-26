@@ -1,56 +1,93 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Play, Shuffle, Download, MoreHorizontal, Heart } from "lucide-react";
 import api from "@/lib/axios";
 import { usePlayer } from "@/context/PlayerContext";
 import { useGlobalMenu } from "@/context/MenuContext";
 
 export default function LikedSongs() {
-  const { tracks, setTracks, setCurrentTrack, setIsPlaying, currentTrack } =
-    usePlayer();
+  const { setTracks, setCurrentTrack, setIsPlaying } = usePlayer();
   const { showMenu } = useGlobalMenu();
+  const [likedTracks, setLikedTracks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const normalizeTrack = (track: any) => {
+    const API_BASE = api.defaults.baseURL || "https://panel.nexxacodeid.site";
+
+    return {
+      ...track,
+      title: track.trackTitle || track.title || "Unknown Title",
+      artist: track.artistName || track.artist || "Unknown Artist",
+      cover_url: track.playlistCover
+        ? `${API_BASE}/storage/${track.playlistCover}`
+        : "/default-cover.png",
+      audio_url:
+        track.fileName || track.file_name
+          ? `${API_BASE}/storage/music/${track.fileName || track.file_name}`
+          : track.audio_url || null,
+      duration: track.durationSeconds
+        ? `${Math.floor(track.durationSeconds / 60)
+            .toString()
+            .padStart(2, "0")}:${(track.durationSeconds % 60)
+            .toString()
+            .padStart(2, "0")}`
+        : track.duration || "00:00",
+      is_liked: true,
+    };
+  };
+
+  const loadLikedTracks = async () => {
+    const endpoints = ["/api/tracks/liked", "/api/tracks/liked-tracks"];
+
+    for (const endpoint of endpoints) {
+      try {
+        const res = await api.get(endpoint);
+        const resData = res.data;
+        const rawData = resData?.data || resData;
+        return Array.isArray(rawData) ? rawData.map(normalizeTrack) : [];
+      } catch (err: any) {
+        if (err?.response?.status !== 404) {
+          throw err;
+        }
+      }
+    }
+
+    return [];
+  };
 
   useEffect(() => {
-    if (tracks.length === 0) {
-      const API_BASE = api.defaults.baseURL || "https://panel.nexxacodeid.site";
-      api
-        .get("/api/tracks")
-        .then((res) => {
-          const resData = res.data;
-          const rawData = resData?.data || resData;
-          const data = Array.isArray(rawData)
-            ? rawData.map((track: any) => ({
-                ...track,
-                title: track.trackTitle || "Unknown Title",
-                artist: track.artistName || "Unknown Artist",
-                cover_url: track.playlistCover
-                  ? `${API_BASE}/storage/${track.playlistCover}`
-                  : "/default-cover.png",
-                audio_url:
-                  track.fileName || track.file_name
-                    ? `${API_BASE}/storage/music/${track.fileName || track.file_name}`
-                    : null,
-                duration: track.durationSeconds
-                  ? `${Math.floor(track.durationSeconds / 60)
-                      .toString()
-                      .padStart(2, "0")}:${(track.durationSeconds % 60)
-                      .toString()
-                      .padStart(2, "0")}`
-                  : "00:00",
-                is_liked: track.is_liked || false,
-              }))
-            : [];
-          setTracks(data);
-          if (data.length > 0 && !currentTrack) {
-            setCurrentTrack(data[0]);
-          }
-        })
-        .catch((err) => console.error("Gagal narik lagu dari DB!", err));
-    }
-  }, [tracks.length, setTracks, setCurrentTrack, currentTrack]);
+    setLoading(true);
 
-  const likedTracks = tracks.filter((track) => track.is_liked);
+    loadLikedTracks()
+      .then((data) => {
+        setLikedTracks(data);
+        setTracks((prev) => {
+          const likedIds = new Set(data.map((track) => String(track.id)));
+          const mergedTracks = prev.map((track) =>
+            likedIds.has(String(track.id))
+              ? { ...track, is_liked: true }
+              : track,
+          );
+
+          const existingIds = new Set(
+            mergedTracks.map((track) => String(track.id)),
+          );
+          const missingLikedTracks = data.filter(
+            (track) => !existingIds.has(String(track.id)),
+          );
+
+          return [...mergedTracks, ...missingLikedTracks];
+        });
+      })
+      .catch((err) => {
+        console.error("Gagal narik liked songs dari backend!", err);
+        setLikedTracks([]);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
 
   const handlePlayTrack = (track: any) => {
     setCurrentTrack(track);
@@ -137,7 +174,11 @@ export default function LikedSongs() {
       {/* Tracklist Table */}
       <div className="px-4 md:px-8 relative z-10">
         <div className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/5 p-4 md:p-6 mb-20">
-          {likedTracks.length > 0 ? (
+          {loading ? (
+            <div className="py-24 text-center text-gray-500 font-mono text-xs uppercase tracking-widest">
+              Loading liked tracks...
+            </div>
+          ) : likedTracks.length > 0 ? (
             <div className="flex flex-col gap-3">
               {likedTracks.map((track: any, i: number) => (
                 <div
@@ -150,10 +191,7 @@ export default function LikedSongs() {
                 >
                   <div className="w-12 h-12 rounded-lg bg-[#0a0a0a] flex items-center justify-center shadow-inner overflow-hidden flex-shrink-0">
                     <img
-                      src={
-                        track.albumArt ||
-                        "/nocturn.avif"
-                      }
+                      src={track.albumArt || "/nocturn.avif"}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform"
                       alt={track.title || "Cover"}
                     />

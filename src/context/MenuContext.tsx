@@ -8,6 +8,7 @@ import {
 } from "react";
 import api from "@/lib/axios"; // Import instance axios kita yang udah di-set base URL-nya
 import { usePlayer } from "@/context/PlayerContext";
+import { applyPersistedLikeState, setPersistedLikedTrackId } from "@/lib/utils";
 
 interface MenuContextType {
   showMenu: (
@@ -70,27 +71,29 @@ export function MenuProvider({ children }: { children: ReactNode }) {
       if (Array.isArray(rawData)) {
         const API_BASE =
           api.defaults.baseURL || "https://panel.nexxacodeid.site";
-        const updatedTracks = rawData.map((track) => ({
-          ...track,
-          title: track.trackTitle || "Unknown Title",
-          artist: track.artistName || "Unknown Artist",
-          cover_url: track.playlistCover
-            ? `${API_BASE}/storage/${track.playlistCover}`
-            : "/default-cover.png",
-          audio_url:
-            track.fileName || track.file_name
-              ? `${API_BASE}/storage/music/${track.fileName || track.file_name}`
-              : null,
-          duration: track.durationSeconds
-            ? `${Math.floor(track.durationSeconds / 60)
-                .toString()
-                .padStart(
-                  2,
-                  "0",
-                )}:${(track.durationSeconds % 60).toString().padStart(2, "0")}`
-            : "00:00",
-          is_liked: track.is_liked || false,
-        }));
+        const updatedTracks = rawData
+          .map((track) => ({
+            ...track,
+            title: track.trackTitle || "Unknown Title",
+            artist: track.artistName || "Unknown Artist",
+            cover_url: track.playlistCover
+              ? `${API_BASE}/storage/${track.playlistCover}`
+              : "/default-cover.png",
+            audio_url:
+              track.fileName || track.file_name
+                ? `${API_BASE}/storage/music/${track.fileName || track.file_name}`
+                : null,
+            duration: track.durationSeconds
+              ? `${Math.floor(track.durationSeconds / 60)
+                  .toString()
+                  .padStart(
+                    2,
+                    "0",
+                  )}:${(track.durationSeconds % 60).toString().padStart(2, "0")}`
+              : "00:00",
+            is_liked: track.is_liked || false,
+          }))
+          .map(applyPersistedLikeState);
         setTracks(updatedTracks);
       }
     } catch (err) {
@@ -142,6 +145,7 @@ export function MenuProvider({ children }: { children: ReactNode }) {
       t.id === trackId ? { ...t, is_liked: !isCurrentlyLiked } : t,
     );
     setTracks(updatedTracks);
+    setPersistedLikedTrackId(trackId, !isCurrentlyLiked);
 
     // Update juga currentTrack kalau lagu yang dilike/unlike kebetulan lagi diputar
     if (currentTrack?.id === trackId) {

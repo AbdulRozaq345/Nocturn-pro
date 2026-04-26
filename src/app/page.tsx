@@ -7,6 +7,7 @@ import api from "@/lib/axios";
 import { usePlayer } from "@/context/PlayerContext";
 import Link from "next/link";
 import { useGlobalMenu } from "@/context/MenuContext";
+import { applyPersistedLikeState } from "@/lib/utils";
 
 export default function NocturnPage() {
   const { showMenu } = useGlobalMenu();
@@ -53,25 +54,27 @@ export default function NocturnPage() {
         const resData = res.data;
         const rawData = resData?.data || resData;
         const data = Array.isArray(rawData)
-          ? rawData.map((track) => ({
-              ...track,
-              title: track.trackTitle || "Unknown Title",
-              artist: track.artistName || "Unknown Artist",
-              audio_url:
-                track.fileName || track.file_name
-                  ? `${API_BASE}/storage/music/${track.fileName || track.file_name}`
-                  : null,
-              duration: track.durationSeconds
-                ? `${Math.floor(track.durationSeconds / 60)
-                    .toString()
-                    .padStart(
-                      2,
-                      "0",
-                    )}:${(track.durationSeconds % 60).toString().padStart(2, "0")}`
-                : "00:00",
-              // Ensure is_liked field is always present
-              is_liked: track.is_liked || false,
-            }))
+          ? rawData
+              .map((track) => ({
+                ...track,
+                title: track.trackTitle || "Unknown Title",
+                artist: track.artistName || "Unknown Artist",
+                audio_url:
+                  track.fileName || track.file_name
+                    ? `${API_BASE}/storage/music/${track.fileName || track.file_name}`
+                    : null,
+                duration: track.durationSeconds
+                  ? `${Math.floor(track.durationSeconds / 60)
+                      .toString()
+                      .padStart(
+                        2,
+                        "0",
+                      )}:${(track.durationSeconds % 60).toString().padStart(2, "0")}`
+                  : "00:00",
+                // Ensure is_liked field is always present
+                is_liked: track.is_liked || false,
+              }))
+              .map(applyPersistedLikeState)
           : [];
         setTracks(data);
         // Cek dulu apakah belum ada track yang diputar, biar pas balik home nggak ke-reset
