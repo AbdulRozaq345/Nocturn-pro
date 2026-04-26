@@ -33,6 +33,19 @@ export default function SearchPage() {
   const { setCurrentTrack, setIsPlaying, setTracks } = usePlayer();
   const { showMenu } = useGlobalMenu();
 
+  const handleBackToMain = () => {
+    setIsFocused(false);
+    setIsSearching(false);
+    setQuery("");
+
+    if (
+      typeof document !== "undefined" &&
+      document.activeElement instanceof HTMLElement
+    ) {
+      document.activeElement.blur();
+    }
+  };
+
   useEffect(() => {
     // Ambil data lagu dari database (API)
     import("@/lib/axios").then((module) => {
@@ -140,8 +153,6 @@ export default function SearchPage() {
 
     return (
       <div className="flex flex-col gap-2 animate-in fade-in duration-300">
-        
-
         {/* Hasil Pencarian (Sesuai Query) */}
         {matchedSongs.length > 0 && (
           <div className="mb-6">
@@ -261,13 +272,7 @@ export default function SearchPage() {
         className={`flex items-center gap-3 mb-8 transition-all duration-300 ${isFocused ? "translate-y-[-10px]" : ""}`}
       >
         {isFocused && (
-          <button
-            onClick={() => {
-              setIsFocused(false);
-              setQuery("");
-            }}
-            className="text-[#72fe8f]"
-          >
+          <button onClick={handleBackToMain} className="text-[#72fe8f]">
             <ArrowLeft size={20} />
           </button>
         )}
