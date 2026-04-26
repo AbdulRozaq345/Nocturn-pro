@@ -182,7 +182,6 @@ export function MenuProvider({ children }: { children: ReactNode }) {
       });
       console.log("SENDING TRACK TO PLAYLIST", activeTrack);
 
-      
       setIsOpen(false);
     } catch (err: any) {
       console.error(err);

@@ -48,7 +48,8 @@ export default function Player() {
 
   const toggleShuffle = () => setIsShuffle(!isShuffle);
 
-  const getTrackKey = (track: any) => `${track?.id ?? "unknown"}::${track?.audio_url ?? ""}`;
+  const getTrackKey = (track: any) =>
+    `${track?.id ?? "unknown"}::${track?.audio_url ?? ""}`;
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVol = parseFloat(e.target.value); // Pake newVol biar konsisten
