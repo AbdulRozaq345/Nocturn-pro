@@ -218,7 +218,7 @@ export default function Player() {
   };
 
   const togglePlay = () => {
-    setIsPlaying((prev) => !prev);
+    setIsPlaying(!isPlaying);
   };
 
   const safelyPlayAudio = () => {

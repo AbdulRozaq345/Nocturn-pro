@@ -1,14 +1,21 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  Dispatch,
+  SetStateAction,
+} from "react";
 
 interface PlayerContextType {
   tracks: any[];
-  setTracks: (tracks: any[]) => void;
+  setTracks: Dispatch<SetStateAction<any[]>>;
   currentTrack: any;
-  setCurrentTrack: (track: any) => void;
+  setCurrentTrack: Dispatch<SetStateAction<any>>;
   isPlaying: boolean;
-  setIsPlaying: (p: boolean) => void;
+  setIsPlaying: Dispatch<SetStateAction<boolean>>;
   togglePlay: () => void;
 }
 
