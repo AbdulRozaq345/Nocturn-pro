@@ -5,6 +5,7 @@ import { Play, Shuffle, Download, MoreHorizontal, Heart } from "lucide-react";
 import api from "@/lib/axios";
 import { usePlayer } from "@/context/PlayerContext";
 import { useGlobalMenu } from "@/context/MenuContext";
+import { applyPersistedLikeState } from "@/lib/utils";
 
 export default function LikedSongs() {
   const { setTracks, setCurrentTrack, setIsPlaying } = usePlayer();
@@ -12,7 +13,7 @@ export default function LikedSongs() {
   const [likedTracks, setLikedTracks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const normalizeTrack = (track: any) => {
+  const normalizeTrack = (track: any, forceLiked = false) => {
     const API_BASE = api.defaults.baseURL || "https://panel.nexxacodeid.site";
 
     return {
@@ -33,8 +34,21 @@ export default function LikedSongs() {
             .toString()
             .padStart(2, "0")}`
         : track.duration || "00:00",
-      is_liked: true,
+      is_liked: forceLiked || Boolean(track.is_liked),
     };
+  };
+
+  const loadLikedTracksFromAllTracks = async () => {
+    const res = await api.get("/api/tracks");
+    const resData = res.data;
+    const rawData = resData?.data || resData;
+    const normalizedTracks = Array.isArray(rawData)
+      ? rawData
+          .map((track: any) => normalizeTrack(track))
+          .map(applyPersistedLikeState)
+      : [];
+
+    return normalizedTracks.filter((track: any) => track.is_liked);
   };
 
   const loadLikedTracks = async () => {
@@ -45,7 +59,9 @@ export default function LikedSongs() {
         const res = await api.get(endpoint);
         const resData = res.data;
         const rawData = resData?.data || resData;
-        return Array.isArray(rawData) ? rawData.map(normalizeTrack) : [];
+        return Array.isArray(rawData)
+          ? rawData.map((track: any) => normalizeTrack(track, true))
+          : [];
       } catch (err: any) {
         if (err?.response?.status !== 404) {
           throw err;
@@ -53,12 +69,11 @@ export default function LikedSongs() {
       }
     }
 
-    return [];
+    // Fallback kalau endpoint liked khusus belum didaftarkan di backend.
+    return loadLikedTracksFromAllTracks();
   };
 
   useEffect(() => {
-    setLoading(true);
-
     loadLikedTracks()
       .then((data) => {
         setLikedTracks(data);
