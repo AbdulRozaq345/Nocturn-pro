@@ -30,14 +30,87 @@ export default function SearchPage() {
   const [isFocused, setIsFocused] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [databaseSongs, setDatabaseSongs] = useState<any[]>([]);
+  const [searchHistory, setSearchHistory] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+
+    try {
+      const userRaw = localStorage.getItem("user");
+      const user = userRaw ? JSON.parse(userRaw) : null;
+      const userIdentity = String(user?.id || user?.email || "default");
+      const key = `notcer_search_history_${userIdentity}`;
+      const saved = localStorage.getItem(key);
+      const parsed = saved ? JSON.parse(saved) : [];
+      return Array.isArray(parsed) ? parsed.slice(0, 10) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [showAllHistory, setShowAllHistory] = useState(false);
 
   const { setCurrentTrack, setIsPlaying, setTracks } = usePlayer();
   const { showMenu } = useGlobalMenu();
 
+  const getHistoryStorageKey = () => {
+    if (typeof window === "undefined") return "notcer_search_history_default";
+
+    try {
+      const userRaw = localStorage.getItem("user");
+      const user = userRaw ? JSON.parse(userRaw) : null;
+      const userIdentity = String(user?.id || user?.email || "default");
+      return `notcer_search_history_${userIdentity}`;
+    } catch {
+      return "notcer_search_history_default";
+    }
+  };
+
+  const persistHistory = (history: string[]) => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(getHistoryStorageKey(), JSON.stringify(history));
+  };
+
+  const addToHistory = (keyword: string) => {
+    const trimmed = keyword.trim();
+    if (!trimmed) return;
+
+    setSearchHistory((prev) => {
+      const withoutDuplicate = prev.filter(
+        (item) => item.toLowerCase() !== trimmed.toLowerCase(),
+      );
+      const next = [trimmed, ...withoutDuplicate].slice(0, 10);
+      persistHistory(next);
+      return next;
+    });
+  };
+
+  const removeFromHistory = (keyword: string) => {
+    setSearchHistory((prev) => {
+      const next = prev.filter((item) => item !== keyword);
+      persistHistory(next);
+      return next;
+    });
+  };
+
+  const clearHistory = () => {
+    setSearchHistory([]);
+    persistHistory([]);
+    setShowAllHistory(false);
+  };
+
+  const triggerSearchFromHistory = (keyword: string) => {
+    setQuery(keyword);
+    setIsFocused(true);
+    setIsSearching(true);
+    addToHistory(keyword);
+  };
+
   const handleBackToMain = () => {
+    if (query.trim()) {
+      addToHistory(query);
+    }
     setIsFocused(false);
     setIsSearching(false);
     setQuery("");
+    setShowAllHistory(false);
 
     if (
       typeof document !== "undefined" &&
@@ -108,24 +181,71 @@ export default function SearchPage() {
 
   // 2. History & Suggestion (Gambar 2 & 3)
   const renderSearchHistory = () => (
-    <div className="flex flex-col gap-4 animate-in slide-in-from-bottom-2 duration-300">
-      <h3 className="text-[10px] font-mono text-gray-500 uppercase tracking-[0.3em]">
-        Recent_Searches
-      </h3>
-      {["Skyfall", "Sempurna", "Nina"].map((item, i) => (
-        <div
-          key={i}
-          className="flex items-center justify-between group cursor-pointer py-1"
-        >
-          <div className="flex items-center gap-4">
-            <Clock size={16} className="text-gray-600" />
-            <span className="text-sm font-bold text-gray-300 group-hover:text-[#72fe8f]">
-              {item}
+    <div className="grid gap-4 animate-in slide-in-from-bottom-2 duration-300 md:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-[10px] font-mono text-gray-500 uppercase tracking-[0.3em]">
+            Recent_Searches
+          </h3>
+          {searchHistory.length > 0 && (
+            <span className="text-[10px] font-mono text-gray-600 uppercase">
+              {searchHistory.length}/10
             </span>
-          </div>
-          <X size={14} className="text-gray-700 hover:text-white" />
+          )}
         </div>
-      ))}
+
+        {(showAllHistory ? searchHistory : searchHistory.slice(0, 5)).map(
+          (item, i) => (
+            <div
+              key={`${item}-${i}`}
+              className="flex items-center justify-between group cursor-pointer py-1"
+            >
+              <button
+                onClick={() => triggerSearchFromHistory(item)}
+                className="flex items-center gap-4 text-left"
+              >
+                <Clock size={16} className="text-gray-600" />
+                <span className="text-sm font-bold text-gray-300 group-hover:text-[#72fe8f]">
+                  {item}
+                </span>
+              </button>
+              <button onClick={() => removeFromHistory(item)}>
+                <X size={14} className="text-gray-700 hover:text-white" />
+              </button>
+            </div>
+          ),
+        )}
+
+        {searchHistory.length === 0 && (
+          <p className="text-xs text-gray-600 font-mono">Belum ada riwayat.</p>
+        )}
+
+        {searchHistory.length > 5 && (
+          <button
+            onClick={() => setShowAllHistory((prev) => !prev)}
+            className="self-start text-[11px] font-mono text-[#72fe8f] hover:underline"
+          >
+            {showAllHistory ? "Lihat Sedikit" : "Lihat Semua"}
+          </button>
+        )}
+      </div>
+
+      <div className="hidden md:flex flex-col gap-3 rounded-sm border border-white/10 bg-white/[0.02] p-4">
+        <h4 className="text-xs font-mono uppercase tracking-[0.2em] text-[#72fe8f]">
+          Quick Actions
+        </h4>
+        <p className="text-[11px] text-gray-400 leading-relaxed">
+          Klik item riwayat untuk cari ulang cepat. Riwayat tersimpan per akun
+          dan maksimal 10 pencarian terakhir.
+        </p>
+        <button
+          onClick={clearHistory}
+          disabled={searchHistory.length === 0}
+          className="mt-2 h-9 rounded-sm border border-white/10 text-[11px] font-mono uppercase tracking-[0.2em] text-gray-300 hover:text-white hover:border-white/30 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          Hapus Semua
+        </button>
+      </div>
     </div>
   );
 
@@ -146,6 +266,10 @@ export default function SearchPage() {
     const recommendedSongs = otherSongs.slice(0, 8); // Tampilkan 8 rekomendasi saja
 
     const handlePlaySong = (song: any, list: any[]) => {
+      if (query.trim()) {
+        addToHistory(query);
+      }
+
       // Set antrean lagu ke context player agar bisa 'next/previous'
       setTracks(list);
       // Set lagu yang sekarang dimainkan
@@ -290,6 +414,12 @@ export default function SearchPage() {
             placeholder="Apa yang ingin kamu dengarkan?"
             value={query}
             onFocus={() => setIsFocused(true)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && query.trim()) {
+                addToHistory(query);
+                setIsSearching(true);
+              }
+            }}
             onChange={(e) => {
               setQuery(e.target.value);
               setIsSearching(e.target.value.length > 0);
