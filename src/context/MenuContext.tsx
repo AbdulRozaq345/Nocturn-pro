@@ -26,16 +26,29 @@ export function MenuProvider({ children }: { children: ReactNode }) {
   const [location, setLocation] = useState<"queue" | "playlist" | "general">(
     "general",
   );
-  const [screenWidth, setScreenWidth] = useState(0);
   const [userPlaylists, setUserPlaylists] = useState<any[]>([]);
   const [isSubMenuOpen, setIsSubMenuOpen] = useState(false);
 
+  const normalizePlaylists = (payload: any) => {
+    const raw = payload?.data?.data || payload?.data || payload;
+    return Array.isArray(raw) ? raw : [];
+  };
+
   const fetchPlaylists = async () => {
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) {
+      setUserPlaylists([]);
+      return;
+    }
+
     try {
       const res = await api.get("/api/playlists"); // Ganti endpoint sesuai API lo
-      setUserPlaylists(res.data.data || res.data); // Simpan playlist di state
-    } catch (error) {
-      console.error("Error fetching playlists:", error);
+      setUserPlaylists(normalizePlaylists(res.data)); // Simpan playlist di state
+    } catch (error: any) {
+      if (error?.response?.status !== 401) {
+        console.error("Error fetching playlists:", error);
+      }
     }
   };
 
@@ -113,6 +126,9 @@ export function MenuProvider({ children }: { children: ReactNode }) {
     setLocation(loc);
     setIsOpen(true);
     setIsSubMenuOpen(false); // Reset submenu setiap kali menu dibuka
+
+    // Selalu sinkronkan daftar playlist saat menu dibuka supaya playlist baru langsung muncul
+    fetchPlaylists();
   };
 
   const handleLike = async () => {
@@ -181,7 +197,8 @@ export function MenuProvider({ children }: { children: ReactNode }) {
     if (!name) return;
     try {
       const res = await api.post("/api/playlists", { name });
-      setUserPlaylists([...userPlaylists, res.data.data || res.data]);
+      const created = res.data?.data || res.data;
+      setUserPlaylists((prev) => [...prev, created]);
       alert("Playlist baru jadi, bosquu!");
     } catch (err: any) {
       console.error(err);

@@ -48,6 +48,8 @@ export default function Player() {
 
   const toggleShuffle = () => setIsShuffle(!isShuffle);
 
+  const getTrackKey = (track: any) => `${track?.id ?? "unknown"}::${track?.audio_url ?? ""}`;
+
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVol = parseFloat(e.target.value); // Pake newVol biar konsisten
     setVolume(newVol);
@@ -80,7 +82,12 @@ export default function Player() {
     if (!currentTrack || tracks.length === 0) return;
     setHistory((prev) => [...prev, currentTrack]);
 
-    const currentIndex = tracks.findIndex((t) => t.id === currentTrack.id);
+    const currentIndexByKey = tracks.findIndex(
+      (t) => getTrackKey(t) === getTrackKey(currentTrack),
+    );
+    const currentIndexById = tracks.findIndex((t) => t.id === currentTrack.id);
+    const currentIndex =
+      currentIndexByKey >= 0 ? currentIndexByKey : currentIndexById;
 
     if (isShuffle) {
       const randomIndex = Math.floor(Math.random() * tracks.length);
@@ -126,8 +133,17 @@ export default function Player() {
                       )}:${(track.durationSeconds % 60).toString().padStart(2, "0")}`
                   : track.duration || "00:00",
               }));
-              // Gabung sisa lagu dari server
-              setTracks([...tracks, ...dbTracks]);
+              // Gabung antrean tanpa duplikasi id+audio_url biar index next/previous tetap stabil
+              setTracks((prev) => {
+                const seen = new Set(prev.map((item) => getTrackKey(item)));
+                const uniqueNewTracks = dbTracks.filter((item: any) => {
+                  const key = getTrackKey(item);
+                  if (seen.has(key)) return false;
+                  seen.add(key);
+                  return true;
+                });
+                return [...prev, ...uniqueNewTracks];
+              });
             }
           })
           .catch((err) => console.error("Gagal get lagu random", err));
@@ -149,9 +165,15 @@ export default function Player() {
       setIsPlaying(true);
       return;
     }
-    const currentIndex = tracks.findIndex((t) => t.id === currentTrack.id);
+    const currentIndexByKey = tracks.findIndex(
+      (t) => getTrackKey(t) === getTrackKey(currentTrack),
+    );
+    const currentIndexById = tracks.findIndex((t) => t.id === currentTrack.id);
+    const currentIndex =
+      currentIndexByKey >= 0 ? currentIndexByKey : currentIndexById;
     const prevIndex = (currentIndex - 1 + tracks.length) % tracks.length;
     setCurrentTrack(tracks[prevIndex]);
+    setIsPlaying(true);
   };
 
   const handleEnded = () => {
@@ -195,29 +217,32 @@ export default function Player() {
   };
 
   const togglePlay = () => {
-    // Kita panggil togglePlay dari context secara implisit via setIsPlaying(!isPlaying)
-    // Tapi karena sudah ada di context, kita hanya perlu ubah state isPlaying-nya.
-    setIsPlaying(!isPlaying);
+    setIsPlaying((prev) => !prev);
+  };
+
+  const safelyPlayAudio = () => {
+    if (!audioRef.current || !currentTrack?.audio_url) return;
+    const playPromise = audioRef.current.play();
+    if (playPromise !== undefined) {
+      playPromise.catch((err) => {
+        if (err.name !== "AbortError") {
+          console.warn("Autoplay ter-block:", err);
+          setIsPlaying(false);
+        }
+      });
+    }
   };
 
   useEffect(() => {
     // Memastikan pemutar audio (HTMLAudioElement) sinkron dengan state isPlaying di Context
     if (audioRef.current && currentTrack?.audio_url) {
       if (isPlaying) {
-        const playPromise = audioRef.current.play();
-        if (playPromise !== undefined) {
-          playPromise.catch((err) => {
-            if (err.name !== "AbortError") {
-              console.warn("Autoplay ter-block:", err);
-              setIsPlaying(false);
-            }
-          });
-        }
+        safelyPlayAudio();
       } else {
         audioRef.current.pause();
       }
     }
-  }, [isPlaying, currentTrack?.audio_url || ""]);
+  }, [isPlaying, currentTrack?.id, currentTrack?.audio_url]);
 
   useEffect(() => {
     // Tandai bahwa komponen sudah mount, jadi perubahan berikutnya tidak dianggap initial mount lagi
@@ -231,6 +256,13 @@ export default function Player() {
       // setIsPlaying(true); dihapus agar tidak autoplay saat website pertama kali dibuka
     }
   }, [currentTrack?.audio_url]);
+
+  const handleCanPlay = () => {
+    // Retry play setelah source siap untuk mencegah kondisi play() terlalu cepat saat ganti lagu
+    if (isPlaying) {
+      safelyPlayAudio();
+    }
+  };
 
   // Tambahan untuk mendengarkan spasi agar play/pause otomatis
   useEffect(() => {
@@ -260,10 +292,12 @@ export default function Player() {
       <footer className="fixed z-[100] transition-all bottom-[72px] left-2 w-[calc(100%-16px)] h-14 bg-[#1a1a1a] rounded-lg shadow-2xl overflow-hidden md:bottom-0 md:left-0 md:w-full md:h-24 md:bg-[#0e0e0e]/90 md:backdrop-blur-xl md:rounded-none md:border-t md:border-white/5">
         {currentTrack?.audio_url ? (
           <audio
+            key={getTrackKey(currentTrack)}
             ref={audioRef}
             src={currentTrack.audio_url}
             onTimeUpdate={handleTimeUpdate}
             onLoadedMetadata={handleLoadedMetadata}
+            onCanPlay={handleCanPlay}
             onEnded={handleEnded}
           />
         ) : null}

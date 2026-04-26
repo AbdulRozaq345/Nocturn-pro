@@ -140,17 +140,7 @@ export default function SearchPage() {
 
     return (
       <div className="flex flex-col gap-2 animate-in fade-in duration-300">
-        {/* Tab Filter ala Gambar 4 */}
-        <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide">
-          {["Lagu", "Playlist", "Album", "Artis"].map((tab, i) => (
-            <button
-              key={i}
-              className={`px-4 py-1.5 rounded-full text-[10px] font-mono uppercase tracking-widest border ${i === 0 ? "bg-[#72fe8f] text-black border-[#72fe8f]" : "border-white/10 text-gray-400"}`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
+        
 
         {/* Hasil Pencarian (Sesuai Query) */}
         {matchedSongs.length > 0 && (
