@@ -7,7 +7,8 @@
       "Bash(node -e ' *)",
       "Bash(npm run *)",
       "Bash(timeout 90 bash -c 'while ! grep -q \"Compiled\\\\|error\\\\|✓\\\\|Failed\" C:/Users/DRC/AppData/Local/Temp/claude/C--file-code-notcer/aefae6c0-4051-4091-be1e-5335e59e8653/tasks/b0je2grpe.output 2>/dev/null; do sleep 3; done; cat C:/Users/DRC/AppData/Local/Temp/claude/C--file-code-notcer/aefae6c0-4051-4091-be1e-5335e59e8653/tasks/b0je2grpe.output | tail -25')",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(npx vercel *)"
     ]
   }
 }
