@@ -15,6 +15,8 @@ const withPWA = withPWAInit({
 const nextConfig: NextConfig = {
   reactCompiler: true,
   outputFileTracingRoot: __dirname,
+  // Keep Turbopack config present for Next.js 16 compatibility checks.
+  turbopack: {},
 };
 
 export default withPWA(nextConfig);
