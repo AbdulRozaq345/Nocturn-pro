@@ -46,6 +46,10 @@ export default function Player() {
   const [repeatMode, setRepeatMode] = useState<"none" | "all" | "one">("none");
   const [history, setHistory] = useState<any[]>([]);
 
+  // Refs so Media Session handlers always call the latest version of these functions
+  const playNextRef = useRef<() => void>(() => {});
+  const playPreviousRef = useRef<() => void>(() => {});
+
   const toggleShuffle = () => setIsShuffle(!isShuffle);
 
   const getTrackKey = (track: any) =>
@@ -209,11 +213,20 @@ export default function Player() {
   };
 
   const handleTimeUpdate = () => {
-    if (audioRef.current) {
-      const current = audioRef.current.currentTime;
-      const dur = audioRef.current.duration;
-      setCurrentTime(current);
-      setProgress((current / dur) * 100 || 0);
+    if (!audioRef.current) return;
+    const current = audioRef.current.currentTime;
+    const dur = audioRef.current.duration;
+    setCurrentTime(current);
+    setProgress((current / dur) * 100 || 0);
+
+    if ("mediaSession" in navigator && dur > 0) {
+      try {
+        navigator.mediaSession.setPositionState({
+          duration: dur,
+          playbackRate: audioRef.current.playbackRate,
+          position: current,
+        });
+      } catch {}
     }
   };
 
@@ -264,6 +277,58 @@ export default function Player() {
       safelyPlayAudio();
     }
   };
+
+  // Keep refs pointing to latest playNext/playPrevious (avoid stale closures in Media Session handlers)
+  useEffect(() => { playNextRef.current = playNext; });
+  useEffect(() => { playPreviousRef.current = playPrevious; });
+
+  // Media Session: update song metadata on track change
+  useEffect(() => {
+    if (!("mediaSession" in navigator) || !currentTrack) return;
+    const artworkSrc: string = currentTrack.cover_url || "/icons/icon-512x512.png";
+    const artworkUrl = artworkSrc.startsWith("http")
+      ? artworkSrc
+      : `${window.location.origin}${artworkSrc}`;
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: currentTrack.title || "Unknown",
+      artist: currentTrack.artist || "Nocturn",
+      album: "Nocturn",
+      artwork: [
+        { src: artworkUrl, sizes: "192x192", type: "image/png" },
+        { src: artworkUrl, sizes: "512x512", type: "image/png" },
+      ],
+    });
+  }, [currentTrack]);
+
+  // Media Session: sync play/pause state
+  useEffect(() => {
+    if (!("mediaSession" in navigator)) return;
+    navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
+  }, [isPlaying]);
+
+  // Media Session: register action handlers once on mount
+  useEffect(() => {
+    if (!("mediaSession" in navigator)) return;
+    navigator.mediaSession.setActionHandler("play", () => setIsPlaying(true));
+    navigator.mediaSession.setActionHandler("pause", () => setIsPlaying(false));
+    navigator.mediaSession.setActionHandler("nexttrack", () => playNextRef.current());
+    navigator.mediaSession.setActionHandler("previoustrack", () => playPreviousRef.current());
+    navigator.mediaSession.setActionHandler("seekto", (d) => {
+      if (audioRef.current && d.seekTime !== undefined)
+        audioRef.current.currentTime = d.seekTime;
+    });
+    navigator.mediaSession.setActionHandler("seekbackward", (d) => {
+      if (audioRef.current)
+        audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - (d.seekOffset ?? 10));
+    });
+    navigator.mediaSession.setActionHandler("seekforward", (d) => {
+      if (audioRef.current)
+        audioRef.current.currentTime = Math.min(
+          audioRef.current.duration || 0,
+          audioRef.current.currentTime + (d.seekOffset ?? 10),
+        );
+    });
+  }, []);
 
   // Tambahan untuk mendengarkan spasi agar play/pause otomatis
   useEffect(() => {

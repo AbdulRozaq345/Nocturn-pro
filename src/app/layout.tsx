@@ -15,7 +15,10 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return !!localStorage.getItem("token");
+  });
   const pathname = usePathname();
 
   useEffect(() => {
@@ -29,6 +32,12 @@ export default function RootLayout({
     <html lang="en">
 <head>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+<link rel="manifest" href="/manifest.json" />
+<meta name="theme-color" content="#72fe8f" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Nocturn" />
+<link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
 </head>
       <body className="antialiased bg-black text-white selection:bg-[#72fe8f] selection:text-black">
         <PlayerProvider>

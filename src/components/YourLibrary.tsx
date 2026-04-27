@@ -13,11 +13,15 @@ interface Playlist {
 const YourLibrary = () => {
   const [playlists, setPlaylists] = useState<Playlist[]>(() => {
     if (typeof window !== "undefined") {
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const cachedTitle = localStorage.getItem(
-        `playlists_${user?.id || "default"}`,
-      );
-      return cachedTitle ? JSON.parse(cachedTitle) : [];
+      try {
+        const user = JSON.parse(localStorage.getItem("user") || "{}");
+        const userId = user?.id;
+        if (!userId) return [];
+        const cached = localStorage.getItem(`playlists_${userId}`);
+        return cached ? JSON.parse(cached) : [];
+      } catch {
+        return [];
+      }
     }
     return [];
   });
