@@ -234,6 +234,16 @@ export default function Player() {
     setIsPlaying(!isPlaying);
   };
 
+  const stopPlayback = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    setCurrentTime(0);
+    setProgress(0);
+    setIsPlaying(false);
+  };
+
   const safelyPlayAudio = () => {
     if (!audioRef.current || !currentTrack?.audio_url) return;
     const playPromise = audioRef.current.play();
@@ -279,13 +289,18 @@ export default function Player() {
   };
 
   // Keep refs pointing to latest playNext/playPrevious (avoid stale closures in Media Session handlers)
-  useEffect(() => { playNextRef.current = playNext; });
-  useEffect(() => { playPreviousRef.current = playPrevious; });
+  useEffect(() => {
+    playNextRef.current = playNext;
+  });
+  useEffect(() => {
+    playPreviousRef.current = playPrevious;
+  });
 
   // Media Session: update song metadata on track change
   useEffect(() => {
     if (!("mediaSession" in navigator) || !currentTrack) return;
-    const artworkSrc: string = currentTrack.cover_url || "/icons/icon-512x512.png";
+    const artworkSrc: string =
+      currentTrack.cover_url || "/icons/icon-512x512.png";
     const artworkUrl = artworkSrc.startsWith("http")
       ? artworkSrc
       : `${window.location.origin}${artworkSrc}`;
@@ -311,15 +326,23 @@ export default function Player() {
     if (!("mediaSession" in navigator)) return;
     navigator.mediaSession.setActionHandler("play", () => setIsPlaying(true));
     navigator.mediaSession.setActionHandler("pause", () => setIsPlaying(false));
-    navigator.mediaSession.setActionHandler("nexttrack", () => playNextRef.current());
-    navigator.mediaSession.setActionHandler("previoustrack", () => playPreviousRef.current());
+    navigator.mediaSession.setActionHandler("stop", () => stopPlayback());
+    navigator.mediaSession.setActionHandler("nexttrack", () =>
+      playNextRef.current(),
+    );
+    navigator.mediaSession.setActionHandler("previoustrack", () =>
+      playPreviousRef.current(),
+    );
     navigator.mediaSession.setActionHandler("seekto", (d) => {
       if (audioRef.current && d.seekTime !== undefined)
         audioRef.current.currentTime = d.seekTime;
     });
     navigator.mediaSession.setActionHandler("seekbackward", (d) => {
       if (audioRef.current)
-        audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - (d.seekOffset ?? 10));
+        audioRef.current.currentTime = Math.max(
+          0,
+          audioRef.current.currentTime - (d.seekOffset ?? 10),
+        );
     });
     navigator.mediaSession.setActionHandler("seekforward", (d) => {
       if (audioRef.current)
