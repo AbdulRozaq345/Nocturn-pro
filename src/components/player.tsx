@@ -324,9 +324,22 @@ export default function Player() {
   // Media Session: register action handlers once on mount
   useEffect(() => {
     if (!("mediaSession" in navigator)) return;
-    navigator.mediaSession.setActionHandler("play", () => setIsPlaying(true));
-    navigator.mediaSession.setActionHandler("pause", () => setIsPlaying(false));
-    navigator.mediaSession.setActionHandler("stop", () => stopPlayback());
+
+    // Directly control the audio element synchronously — Media Session requires this.
+    // State update alone (async) is too slow; the OS expects immediate audio response.
+    navigator.mediaSession.setActionHandler("play", () => {
+      audioRef.current?.play().catch(() => {});
+      setIsPlaying(true);
+    });
+    navigator.mediaSession.setActionHandler("pause", () => {
+      audioRef.current?.pause();
+      setIsPlaying(false);
+    });
+    navigator.mediaSession.setActionHandler("stop", () => {
+      audioRef.current?.pause();
+      if (audioRef.current) audioRef.current.currentTime = 0;
+      setIsPlaying(false);
+    });
     navigator.mediaSession.setActionHandler("nexttrack", () =>
       playNextRef.current(),
     );
@@ -334,8 +347,16 @@ export default function Player() {
       playPreviousRef.current(),
     );
     navigator.mediaSession.setActionHandler("seekto", (d) => {
-      if (audioRef.current && d.seekTime !== undefined)
+      if (audioRef.current && d.seekTime !== undefined) {
         audioRef.current.currentTime = d.seekTime;
+        try {
+          navigator.mediaSession.setPositionState({
+            duration: audioRef.current.duration || 0,
+            playbackRate: audioRef.current.playbackRate,
+            position: d.seekTime,
+          });
+        } catch {}
+      }
     });
     navigator.mediaSession.setActionHandler("seekbackward", (d) => {
       if (audioRef.current)
@@ -388,6 +409,8 @@ export default function Player() {
             onLoadedMetadata={handleLoadedMetadata}
             onCanPlay={handleCanPlay}
             onEnded={handleEnded}
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
           />
         ) : null}
 
