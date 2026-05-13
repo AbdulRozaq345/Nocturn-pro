@@ -39,7 +39,7 @@ export default function MaintenanceAlert({
         const data = (await res.json()) as MaintenanceStatus;
         if (!cancelled) setStatus(data);
       } catch {
-        // diam aja kalau network error, tunggu poll berikutnya
+        // diam aja, tunggu poll berikutnya (penting buat PWA offline)
       }
     };
 
@@ -61,7 +61,6 @@ export default function MaintenanceAlert({
     return () => clearInterval(interval);
   }, [status?.active]);
 
-  // Reset dismiss kalau status baru aktif lagi
   useEffect(() => {
     if (status?.active) setDismissed(false);
   }, [status?.active]);
@@ -70,31 +69,26 @@ export default function MaintenanceAlert({
 
   const { message, estimatedTime, fullscreen } = status;
 
+  // FULLSCREEN MODE — block seluruh halaman
   if (fullscreen) {
     return (
-      <div className="fixed inset-0 z-[999] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
         <div className="bg-[#121212] border border-yellow-500/30 w-full max-w-md p-8 rounded-lg shadow-2xl relative overflow-hidden">
           <div
             className="absolute top-0 left-0 h-[2px] bg-yellow-500 shadow-[0_0_10px_#eab308]"
             style={{ width: `${progress}%` }}
           />
-
           <div className="flex flex-col items-center text-center">
             <div className="w-16 h-16 rounded-full bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center mb-4 animate-pulse">
               <AlertTriangle className="text-yellow-500" size={32} />
             </div>
-
             <h1 className="text-2xl font-bold tracking-tighter text-white uppercase">
               System Maintenance
             </h1>
             <p className="text-[10px] text-yellow-500 mt-2 font-mono uppercase tracking-widest">
               [ STATUS_OFFLINE ]
             </p>
-
-            <p className="text-sm text-gray-400 mt-6 leading-relaxed">
-              {message}
-            </p>
-
+            <p className="text-sm text-gray-400 mt-6 leading-relaxed">{message}</p>
             {estimatedTime && (
               <div className="mt-6 w-full border-t border-white/5 pt-4">
                 <p className="text-[10px] uppercase tracking-widest text-gray-500 font-mono">
@@ -105,7 +99,6 @@ export default function MaintenanceAlert({
                 </p>
               </div>
             )}
-
             <p className="text-[10px] text-gray-600 mt-8 font-mono">
               © 2026 NexxaCodeID. Stay tuned. 🛠️
             </p>
@@ -115,41 +108,70 @@ export default function MaintenanceAlert({
     );
   }
 
+  // CARD MODE — floating card, visible di desktop + mobile + PWA
   return (
-    <div className="relative w-full bg-gradient-to-r from-yellow-500/10 via-yellow-500/5 to-transparent border-b border-yellow-500/30 backdrop-blur-md">
-      <div
-        className="absolute bottom-0 left-0 h-[1px] bg-yellow-500 shadow-[0_0_8px_#eab308]"
-        style={{ width: `${progress}%` }}
-      />
+    <div
+      className="
+        fixed z-[200]
+        top-20 md:top-24
+        left-3 right-3
+        md:left-auto md:right-6 md:max-w-sm md:w-full
+        animate-in slide-in-from-top-5 fade-in duration-300
+        pointer-events-none
+      "
+      role="alert"
+      aria-live="polite"
+    >
+      <div className="bg-[#121212]/95 border border-yellow-500/40 rounded-xl shadow-2xl shadow-yellow-500/10 backdrop-blur-xl overflow-hidden relative pointer-events-auto">
+        {/* Progress bar berjalan */}
+        <div
+          className="absolute top-0 left-0 h-[2px] bg-yellow-500 shadow-[0_0_10px_#eab308] transition-all"
+          style={{ width: `${progress}%` }}
+        />
 
-      <div className="flex items-center gap-3 px-4 md:px-12 py-3">
-        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center animate-pulse">
-          <AlertTriangle className="text-yellow-500" size={14} />
-        </div>
+        {/* Glow accent corner */}
+        <div className="absolute -top-12 -right-12 w-32 h-32 bg-yellow-500/20 rounded-full blur-2xl pointer-events-none" />
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-0.5">
-            <span className="text-[9px] text-yellow-500 font-mono font-bold uppercase tracking-widest">
-              [ MAINTENANCE_MODE ]
-            </span>
-            {estimatedTime && (
-              <span className="text-[9px] text-gray-500 font-mono uppercase tracking-widest hidden sm:inline">
-                · ETA: <span className="text-[#72fe8f]">{estimatedTime}</span>
+        <div className="relative p-4 flex gap-3">
+          {/* Icon */}
+          <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center animate-pulse">
+            <AlertTriangle className="text-yellow-500" size={18} />
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <span className="text-[10px] text-yellow-500 font-mono font-bold uppercase tracking-widest">
+                [ MAINTENANCE_MODE ]
               </span>
+              {dismissible && (
+                <button
+                  onClick={() => setDismissed(true)}
+                  className="flex-shrink-0 text-gray-500 hover:text-white p-0.5 transition-colors"
+                  aria-label="Dismiss"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            <p className="text-xs text-gray-200 leading-relaxed">{message}</p>
+
+            {estimatedTime && (
+              <div className="mt-3 pt-3 border-t border-white/5 flex items-center gap-2">
+                <span className="text-[9px] uppercase tracking-widest text-gray-500 font-mono">
+                  ETA
+                </span>
+                <span className="text-[11px] text-[#72fe8f] font-mono font-bold">
+                  {estimatedTime}
+                </span>
+              </div>
             )}
           </div>
-          <p className="text-xs text-gray-300 truncate">{message}</p>
         </div>
 
-        {dismissible && (
-          <button
-            onClick={() => setDismissed(true)}
-            className="flex-shrink-0 text-gray-500 hover:text-white p-1 transition-colors"
-            aria-label="Dismiss"
-          >
-            <X size={14} />
-          </button>
-        )}
+        {/* Bottom accent line */}
+        <div className="h-[1px] bg-gradient-to-r from-transparent via-yellow-500/50 to-transparent" />
       </div>
     </div>
   );
