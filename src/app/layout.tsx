@@ -9,6 +9,7 @@ import { PlayerProvider } from "@/context/PlayerContext";
 import Sidebar from "@/components/sidebar";
 import Topbar from "@/components/topbar";
 import Player from "@/components/player";
+import MaintenanceAlert from "@/components/alert";
 
 export default function RootLayout({
   children,
@@ -47,6 +48,7 @@ export default function RootLayout({
               <Sidebar />
               <div className="flex-grow flex flex-col relative overflow-y-auto custom-scrollbar w-full">
                 <Topbar />
+                <MaintenanceAlert />
                 {children}
               </div>
             </div>
