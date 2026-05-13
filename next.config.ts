@@ -15,6 +15,9 @@ const withPWA = withPWAInit({
 const nextConfig: NextConfig = {
   reactCompiler: true,
   outputFileTracingRoot: __dirname,
+  outputFileTracingIncludes: {
+    "/api/maintenance-status": ["./data/maintenance.json"],
+  },
   // Keep Turbopack config present for Next.js 16 compatibility checks.
   turbopack: {},
 };
