@@ -57,6 +57,45 @@ export default function Player() {
   const getTrackKey = (track: any) =>
     `${track?.id ?? "unknown"}::${track?.audio_url ?? ""}`;
 
+  // Update Media Session metadata + state secara imperative (tanpa nunggu re-render)
+  const updateMediaSession = (track: any, playing: boolean) => {
+    if (!("mediaSession" in navigator) || !track) return;
+    try {
+      const artworkSrc: string =
+        track.cover_url || "/icons/icon-512x512.png";
+      const artworkUrl = artworkSrc.startsWith("http")
+        ? artworkSrc
+        : `${window.location.origin}${artworkSrc}`;
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: track.title || "Unknown",
+        artist: track.artist || "Nocturn",
+        album: "Nocturn",
+        artwork: [
+          { src: artworkUrl, sizes: "192x192", type: "image/png" },
+          { src: artworkUrl, sizes: "512x512", type: "image/png" },
+        ],
+      });
+      navigator.mediaSession.playbackState = playing ? "playing" : "paused";
+    } catch {}
+  };
+
+  // Putar track tertentu secara imperative — bypass React render cycle biar instant
+  const playTrackImmediate = (track: any) => {
+    if (!track) return;
+    setCurrentTrack(track);
+    setIsPlaying(true);
+
+    const audio = audioRef.current;
+    if (audio && track.audio_url) {
+      if (audio.src !== track.audio_url) {
+        audio.src = track.audio_url;
+      }
+      resumeContext();
+      audio.play().catch(() => {});
+    }
+    updateMediaSession(track, true);
+  };
+
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVol = parseFloat(e.target.value); // Pake newVol biar konsisten
     setVolume(newVol);
@@ -98,22 +137,18 @@ export default function Player() {
 
     if (isShuffle) {
       const randomIndex = Math.floor(Math.random() * tracks.length);
-      setCurrentTrack(tracks[randomIndex]);
-      setIsPlaying(true);
+      playTrackImmediate(tracks[randomIndex]);
       return;
     }
 
     // Jika lagu terakhir, loop balik ke awal atau ambil dari random database tanpa delay menghentikan fungsi keseluruhan (secara async)
     if (currentIndex === tracks.length - 1) {
       if (repeatMode === "all") {
-        setCurrentTrack(tracks[0]);
-        setIsPlaying(true);
+        playTrackImmediate(tracks[0]);
         return;
       } else {
-        // Otomatis fetch lagu baru tapi untuk sisa playlistnya, jangan hentikan respons UI
-        // Sementara itu kita play lagu pertama aja dulu biar gak kerasa ada delay jeda nunggu API
-        setCurrentTrack(tracks[0]);
-        setIsPlaying(true);
+        // Putar lagu pertama dulu biar gak kerasa delay nunggu API
+        playTrackImmediate(tracks[0]);
 
         // Fetch diam-diam di background dan perbarui antrean saat selesai
         api
@@ -159,8 +194,7 @@ export default function Player() {
     }
 
     const nextIndex = (currentIndex + 1) % tracks.length;
-    setCurrentTrack(tracks[nextIndex]);
-    setIsPlaying(true);
+    playTrackImmediate(tracks[nextIndex]);
   };
 
   const playPrevious = () => {
@@ -168,8 +202,7 @@ export default function Player() {
     if (history.length > 0) {
       const previousTrack = history[history.length - 1];
       setHistory((prev) => prev.slice(0, -1));
-      setCurrentTrack(previousTrack);
-      setIsPlaying(true);
+      playTrackImmediate(previousTrack);
       return;
     }
     const currentIndexByKey = tracks.findIndex(
@@ -179,8 +212,7 @@ export default function Player() {
     const currentIndex =
       currentIndexByKey >= 0 ? currentIndexByKey : currentIndexById;
     const prevIndex = (currentIndex - 1 + tracks.length) % tracks.length;
-    setCurrentTrack(tracks[prevIndex]);
-    setIsPlaying(true);
+    playTrackImmediate(tracks[prevIndex]);
   };
 
   const handleEnded = () => {
@@ -233,7 +265,23 @@ export default function Player() {
   };
 
   const togglePlay = () => {
-    setIsPlaying(!isPlaying);
+    const audio = audioRef.current;
+    if (!audio || !currentTrack?.audio_url) {
+      setIsPlaying((p) => !p);
+      return;
+    }
+    if (audio.paused) {
+      resumeContext();
+      audio.play().catch(() => {});
+      setIsPlaying(true);
+      if ("mediaSession" in navigator)
+        navigator.mediaSession.playbackState = "playing";
+    } else {
+      audio.pause();
+      setIsPlaying(false);
+      if ("mediaSession" in navigator)
+        navigator.mediaSession.playbackState = "paused";
+    }
   };
 
   const stopPlayback = () => {
@@ -260,10 +308,10 @@ export default function Player() {
     }
   };
 
-  // Hubungkan audio element ke Web Audio Analyser tiap kali track ganti
+  // Audio element sekarang persistent; cukup attach analyser sekali aja.
   useEffect(() => {
     if (audioRef.current) attachAudioElement(audioRef.current);
-  }, [currentTrack?.audio_url, attachAudioElement]);
+  }, [attachAudioElement]);
 
   useEffect(() => {
     // Memastikan pemutar audio (HTMLAudioElement) sinkron dengan state isPlaying di Context
@@ -337,15 +385,20 @@ export default function Player() {
     // State update alone (async) is too slow; the OS expects immediate audio response.
     navigator.mediaSession.setActionHandler("play", () => {
       audioRef.current?.play().catch(() => {});
+      navigator.mediaSession.playbackState = "playing";
       setIsPlaying(true);
     });
     navigator.mediaSession.setActionHandler("pause", () => {
       audioRef.current?.pause();
+      navigator.mediaSession.playbackState = "paused";
       setIsPlaying(false);
     });
     navigator.mediaSession.setActionHandler("stop", () => {
       audioRef.current?.pause();
       if (audioRef.current) audioRef.current.currentTime = 0;
+      navigator.mediaSession.playbackState = "paused";
+      setProgress(0);
+      setCurrentTime(0);
       setIsPlaying(false);
     });
     navigator.mediaSession.setActionHandler("nexttrack", () =>
@@ -408,20 +461,18 @@ export default function Player() {
   return (
     <>
       <footer className="fixed z-[100] transition-all bottom-[72px] left-2 w-[calc(100%-16px)] h-14 bg-[#1a1a1a] rounded-lg shadow-2xl overflow-hidden md:bottom-0 md:left-0 md:w-full md:h-24 md:bg-[#0e0e0e]/90 md:backdrop-blur-xl md:rounded-none md:border-t md:border-white/5">
-        {currentTrack?.audio_url ? (
-          <audio
-            key={getTrackKey(currentTrack)}
-            ref={audioRef}
-            src={currentTrack.audio_url}
-            crossOrigin="anonymous"
-            onTimeUpdate={handleTimeUpdate}
-            onLoadedMetadata={handleLoadedMetadata}
-            onCanPlay={handleCanPlay}
-            onEnded={handleEnded}
-            onPlay={() => setIsPlaying(true)}
-            onPause={() => setIsPlaying(false)}
-          />
-        ) : null}
+        <audio
+          ref={audioRef}
+          src={currentTrack?.audio_url || undefined}
+          crossOrigin="anonymous"
+          preload="auto"
+          onTimeUpdate={handleTimeUpdate}
+          onLoadedMetadata={handleLoadedMetadata}
+          onCanPlay={handleCanPlay}
+          onEnded={handleEnded}
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
+        />
 
         {/* ========== MOBILE LAYOUT ========== */}
         <div
