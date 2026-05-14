@@ -6,6 +6,7 @@ import LoginModal from "@/components/LoginModal";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { PlayerProvider } from "@/context/PlayerContext";
+import { AudioAnalyserProvider } from "@/context/AudioAnalyserContext";
 import Sidebar from "@/components/sidebar";
 import Topbar from "@/components/topbar";
 import Player from "@/components/player";
@@ -42,18 +43,20 @@ export default function RootLayout({
 </head>
       <body className="antialiased bg-black text-white selection:bg-[#72fe8f] selection:text-black">
         <PlayerProvider>
-          <MenuProvider>
-            {!isLoggedIn && !isCallbackPage && <LoginModal />}
-            <div className="flex h-screen overflow-hidden bg-[#0a0a0a] text-white">
-              <Sidebar />
-              <div className="flex-grow flex flex-col relative overflow-y-auto custom-scrollbar w-full">
-                <Topbar />
-                {/* <MaintenanceAlert pollIntervalMs={5000} /> */}
-                {children}
+          <AudioAnalyserProvider>
+            <MenuProvider>
+              {!isLoggedIn && !isCallbackPage && <LoginModal />}
+              <div className="flex h-screen overflow-hidden bg-[#0a0a0a] text-white">
+                <Sidebar />
+                <div className="flex-grow flex flex-col relative overflow-y-auto custom-scrollbar w-full">
+                  <Topbar />
+                  <MaintenanceAlert pollIntervalMs={5000} />
+                  {children}
+                </div>
               </div>
-            </div>
-            <Player />
-          </MenuProvider>
+              <Player />
+            </MenuProvider>
+          </AudioAnalyserProvider>
         </PlayerProvider>
       </body>
     </html>

@@ -1,53 +1,68 @@
+"use client";
+
+import dynamic from "next/dynamic";
+import { usePlayer } from "@/context/PlayerContext";
+
+const HeroVisualizer = dynamic(
+  () => import("@/components/three/HeroVisualizer"),
+  { ssr: false },
+);
+
 interface HeroProps {
   currentTrack: any;
 }
 
 export default function Hero({ currentTrack }: HeroProps) {
-  // Kalau lagi loading atau database kosong, kasih tampilan default biar gak error
-  if (!currentTrack) {
-    return (
-      <section className="relative px-12 pt-8 pb-12 overflow-hidden animate-pulse">
-        <div className="h-64 bg-surface-container rounded-sm"></div>
-      </section>
-    );
-  }
+  const { isPlaying, setIsPlaying } = usePlayer();
 
   return (
-    <section className="relative hidden md:block px-12 pt-8 pb-12 overflow-hidden">
-      {/* Background Image: Ambil dari cover_url database lo */}
-      <div className="absolute inset-0 z-0">
-        <img className="text-transparent w-full h-full object-cover scale-105 blur-sm bg-white/5 animate-pulse text-[0px]" src={
-            currentTrack.cover_url ? `${process.env.NEXT_PUBLIC_BASE_URL}/storage/covers/${currentTrack.cover_url}` : "https://placeholder.com"
-          }
-          alt={currentTrack.title}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0e0e0e] via-[#0e0e0e]/90 to-transparent"></div>
-        <div className="absolute inset-0 bg-gradient-to-r from-[#0e0e0e] via-transparent to-transparent"></div>
-      </div>
+    <section className="relative hidden md:block w-full h-[480px] overflow-hidden">
+      {/* 3D shader background */}
+      <HeroVisualizer />
 
-      <div className="relative z-10 backdrop-blur-3xl bg-white/5 p-10 rounded-sm flex flex-col gap-6 max-w-4xl border border-white/5 shadow-2xl">
-        <div>
-          <span className="text-[0.6rem] font-bold text-[#72fe8f] tracking-[0.3em] uppercase font-mono mb-4 block">
-            Now Playing
+      {/* Gradient veil biar teks tetep kebaca */}
+      <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a0a] via-[#0a0a0a]/55 to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-transparent pointer-events-none" />
+
+      {/* Border glow di pinggir */}
+      <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[#72fe8f]/40 to-transparent" />
+
+      {/* Content overlay */}
+      <div className="relative z-10 h-full flex flex-col justify-end px-12 pb-12 pt-20">
+        <div className="flex items-center gap-3 mb-5">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full rounded-full bg-[#72fe8f] opacity-75 animate-ping" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#72fe8f]" />
           </span>
-          {/* Title otomatis dari Database */}
-          <h2 className="text-6xl font-extrabold tracking-tighter text-white mb-2 leading-none uppercase">
-            {currentTrack.title}
-          </h2>
-          {/* Artist otomatis dari Database */}
-          <p className="text-gray-400 text-sm max-w-md leading-relaxed">
-            A masterpiece by{" "}
-            <span className="text-[#72fe8f]">{currentTrack.artist}</span>.
-            High-fidelity audio curated for the late-night architect. 🐈‍🤣
-          </p>
+          <span className="text-[10px] font-bold text-[#72fe8f] tracking-[0.4em] uppercase font-mono">
+            {isPlaying ? "// Live Session" : "// Now Playing"}
+          </span>
         </div>
 
-        <div className="flex items-center gap-4">
-          <button className="bg-[#72fe8f] text-black px-8 py-3 rounded-sm font-bold text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all">
-            Play Session
+        <h2 className="text-7xl font-black tracking-tighter text-white leading-[0.85] uppercase max-w-3xl drop-shadow-[0_0_25px_rgba(0,0,0,0.7)]">
+          {currentTrack?.title || "INITIALIZING..."}
+        </h2>
+
+        <p className="text-gray-300 text-sm mt-4 max-w-md leading-relaxed">
+          <span className="text-[#72fe8f] font-mono uppercase tracking-wider">
+            {currentTrack?.artist || "STANDBY"}
+          </span>
+          <span className="block mt-1 text-gray-400">
+            High-fidelity audio curated for the late-night architect.
+          </span>
+        </p>
+
+        <div className="flex items-center gap-4 mt-7">
+          <button
+            onClick={() => currentTrack && setIsPlaying(!isPlaying)}
+            disabled={!currentTrack}
+            className="relative group bg-[#72fe8f] text-black px-8 py-3 rounded-sm font-bold text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-[0_0_30px_rgba(114,254,143,0.4)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
+          >
+            <span className="absolute inset-0 rounded-sm bg-[#72fe8f] blur opacity-50 group-hover:opacity-80 transition-opacity -z-10" />
+            {isPlaying ? "▮▮ Pause" : "▶ Play Session"}
           </button>
-          <button className="bg-white/10 backdrop-blur-md text-white px-8 py-3 rounded-sm font-bold text-xs uppercase tracking-widest border border-white/10 hover:bg-white/20 transition-all">
-            Add to Library
+          <button className="bg-white/5 backdrop-blur-md text-white px-8 py-3 rounded-sm font-bold text-xs uppercase tracking-widest border border-white/10 hover:border-[#72fe8f]/50 hover:bg-white/10 transition-all">
+            + Add to Library
           </button>
         </div>
       </div>

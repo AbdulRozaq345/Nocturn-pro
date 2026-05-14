@@ -31,7 +31,7 @@ export default function PlaylistPage() {
               : track.cover_url || "/default-cover.png",
             audio_url:
               track.fileName || track.file_name
-                ? `${API_BASE}/storage/music/${track.fileName || track.file_name}`
+                ? `${API_BASE}/music/${track.fileName || track.file_name}`
                 : track.audio_url || null,
             duration: track.durationSeconds
               ? `${Math.floor(track.durationSeconds / 60)

@@ -14,6 +14,8 @@ const formatDuration = (seconds: number) => {
   return `${m}:${s < 10 ? "0" : ""}${s}`;
 };
 
+const POLL_INTERVAL_MS = 10_000;
+
 export default function MusikPage() {
   const router = useRouter();
   const [songs, setSongs] = useState<any[]>([]);
@@ -21,37 +23,60 @@ export default function MusikPage() {
   const { showMenu } = useGlobalMenu();
 
   useEffect(() => {
-    import("@/lib/axios").then((module) => {
-      const api = module.default;
-      api
-        .get("/api/tracks")
-        .then((res) => {
-          if (res.data && res.data.data) {
-            const API_BASE =
-              api.defaults.baseURL || "https://panel.nexxacodeid.site";
-            const formattedTracks = res.data.data
-              .map((track: any) => ({
-                ...track,
-                title: track.trackTitle || track.title || "Unknown Title",
-                artist: track.artistName || track.artist || "Unknown Artist",
-                audio_url:
-                  track.fileName || track.file_name
-                    ? `${API_BASE}/storage/music/${track.fileName || track.file_name}`
-                    : track.audio_url || null,
-                duration: track.durationSeconds
-                  ? `${Math.floor(track.durationSeconds / 60)
-                      .toString()
-                      .padStart(2, "0")}:${(track.durationSeconds % 60)
-                      .toString()
-                      .padStart(2, "0")}`
-                  : track.duration || "00:00",
-              }))
-              .map(applyPersistedLikeState);
-            setSongs(formattedTracks);
+    let cancelled = false;
+
+    const fetchSongs = async () => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      try {
+        const { default: api } = await import("@/lib/axios");
+        const res = await api.get("/api/tracks");
+        if (cancelled || !res.data?.data) return;
+        const API_BASE =
+          api.defaults.baseURL || "https://panel.nexxacodeid.site";
+        const formattedTracks = res.data.data
+          .map((track: any) => ({
+            ...track,
+            title: track.trackTitle || track.title || "Unknown Title",
+            artist: track.artistName || track.artist || "Unknown Artist",
+            audio_url:
+              track.fileName || track.file_name
+                ? `${API_BASE}/music/${track.fileName || track.file_name}`
+                : track.audio_url || null,
+            duration: track.durationSeconds
+              ? `${Math.floor(track.durationSeconds / 60)
+                  .toString()
+                  .padStart(2, "0")}:${(track.durationSeconds % 60)
+                  .toString()
+                  .padStart(2, "0")}`
+              : track.duration || "00:00",
+          }))
+          .map(applyPersistedLikeState);
+        setSongs((prev) => {
+          if (
+            prev.length === formattedTracks.length &&
+            prev.every((s, i) => s.id === formattedTracks[i].id)
+          ) {
+            return prev;
           }
-        })
-        .catch((err) => console.error(err));
-    });
+          return formattedTracks;
+        });
+      } catch (err) {
+        if (!cancelled) console.error(err);
+      }
+    };
+
+    fetchSongs();
+    const id = setInterval(fetchSongs, POLL_INTERVAL_MS);
+    const onVisible = () => {
+      if (!document.hidden) fetchSongs();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   const handlePlaySong = (song: any) => {

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import Hero from "@/components/hero";
 import TrackList from "@/components/TrackList";
@@ -21,6 +21,10 @@ export default function NocturnPage() {
   } = usePlayer();
 
   const [playlists, setPlaylists] = useState<any[]>([]);
+  const currentTrackRef = useRef(currentTrack);
+  useEffect(() => {
+    currentTrackRef.current = currentTrack;
+  }, [currentTrack]);
 
   useEffect(() => {
     const fetchSidebarPlaylists = async () => {
@@ -41,16 +45,14 @@ export default function NocturnPage() {
   }, []);
 
   useEffect(() => {
-    // Biar list lagunya nggak ke-reset lagi dan is_liked nya nggak "ketimpa" waktu balik ke home
-    if (tracks.length > 0) return;
-
-    // API base URL dari instance axios
+    let cancelled = false;
     const API_BASE = api.defaults.baseURL || "https://panel.nexxacodeid.site";
 
-    // Ambil data dari API Laravel lo bosquu pakai axios biar header Accept terkirim dengan benar (JSON)
-    api
-      .get("/api/tracks")
-      .then((res) => {
+    const fetchTracks = async () => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      try {
+        const res = await api.get("/api/tracks");
+        if (cancelled) return;
         const resData = res.data;
         const rawData = resData?.data || resData;
         const data = Array.isArray(rawData)
@@ -61,7 +63,7 @@ export default function NocturnPage() {
                 artist: track.artistName || "Unknown Artist",
                 audio_url:
                   track.fileName || track.file_name
-                    ? `${API_BASE}/storage/music/${track.fileName || track.file_name}`
+                    ? `${API_BASE}/music/${track.fileName || track.file_name}`
                     : null,
                 duration: track.durationSeconds
                   ? `${Math.floor(track.durationSeconds / 60)
@@ -71,19 +73,41 @@ export default function NocturnPage() {
                         "0",
                       )}:${(track.durationSeconds % 60).toString().padStart(2, "0")}`
                   : "00:00",
-                // Ensure is_liked field is always present
                 is_liked: track.is_liked || false,
               }))
               .map(applyPersistedLikeState)
           : [];
-        setTracks(data);
+        setTracks((prev) => {
+          if (
+            prev.length === data.length &&
+            prev.every((t, i) => t.id === data[i].id)
+          ) {
+            return prev;
+          }
+          return data;
+        });
         // Cek dulu apakah belum ada track yang diputar, biar pas balik home nggak ke-reset
-        if (data.length > 0 && !currentTrack) {
+        if (data.length > 0 && !currentTrackRef.current) {
           setCurrentTrack(data[0]);
         }
-      })
-      .catch((err) => console.error("Gagal narik lagu, cek database!", err));
-  }, [tracks.length, setTracks, currentTrack, setCurrentTrack]);
+      } catch (err) {
+        if (!cancelled) console.error("Gagal narik lagu, cek database!", err);
+      }
+    };
+
+    fetchTracks();
+    const id = setInterval(fetchTracks, 10_000);
+    const onVisible = () => {
+      if (!document.hidden) fetchTracks();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [setTracks, setCurrentTrack]);
 
   return (
     <div className="w-full">

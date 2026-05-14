@@ -18,6 +18,7 @@ import {
 import { useState, useRef, useEffect } from "react";
 import { usePlayer } from "@/context/PlayerContext";
 import { useGlobalMenu } from "@/context/MenuContext"; // Tambahin ini buat fungsi menu
+import { useAudioAnalyser } from "@/context/AudioAnalyserContext";
 import api from "@/lib/axios";
 import CurvedLoop from "./CurvedLoop";
 import MobileOverlay from "./MobileOverlay"; // Import overlay baru
@@ -40,6 +41,7 @@ export default function Player() {
   const [isMuted, setIsMuted] = useState(false);
   const [prevVolume, setPrevVolume] = useState(1);
   const { showMenu } = useGlobalMenu(); // Buat nampilin menu
+  const { attachAudioElement, resumeContext } = useAudioAnalyser();
   const [isMaximized, setIsMaximized] = useState(false); // State overlay mobile
 
   const [isShuffle, setIsShuffle] = useState(false);
@@ -127,7 +129,7 @@ export default function Player() {
                 artist: track.artistName || track.artist || "Unknown Artist",
                 audio_url:
                   track.fileName || track.file_name
-                    ? `${API_BASE}/storage/music/${track.fileName || track.file_name}`
+                    ? `${API_BASE}/music/${track.fileName || track.file_name}`
                     : track.audio_url || null,
                 duration: track.durationSeconds
                   ? `${Math.floor(track.durationSeconds / 60)
@@ -246,6 +248,7 @@ export default function Player() {
 
   const safelyPlayAudio = () => {
     if (!audioRef.current || !currentTrack?.audio_url) return;
+    resumeContext();
     const playPromise = audioRef.current.play();
     if (playPromise !== undefined) {
       playPromise.catch((err) => {
@@ -256,6 +259,11 @@ export default function Player() {
       });
     }
   };
+
+  // Hubungkan audio element ke Web Audio Analyser tiap kali track ganti
+  useEffect(() => {
+    if (audioRef.current) attachAudioElement(audioRef.current);
+  }, [currentTrack?.audio_url, attachAudioElement]);
 
   useEffect(() => {
     // Memastikan pemutar audio (HTMLAudioElement) sinkron dengan state isPlaying di Context
@@ -405,6 +413,7 @@ export default function Player() {
             key={getTrackKey(currentTrack)}
             ref={audioRef}
             src={currentTrack.audio_url}
+            crossOrigin="anonymous"
             onTimeUpdate={handleTimeUpdate}
             onLoadedMetadata={handleLoadedMetadata}
             onCanPlay={handleCanPlay}

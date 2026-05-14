@@ -5,6 +5,7 @@ import {
   useState,
   ReactNode,
   useEffect,
+  useRef,
 } from "react";
 import api from "@/lib/axios"; // Import instance axios kita yang udah di-set base URL-nya
 import { usePlayer } from "@/context/PlayerContext";
@@ -29,6 +30,20 @@ export function MenuProvider({ children }: { children: ReactNode }) {
   );
   const [userPlaylists, setUserPlaylists] = useState<any[]>([]);
   const [isSubMenuOpen, setIsSubMenuOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = (message: string) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast(message);
+    toastTimerRef.current = setTimeout(() => setToast(null), 2200);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   const normalizePlaylists = (payload: any) => {
     const raw = payload?.data?.data || payload?.data || payload;
@@ -81,7 +96,7 @@ export function MenuProvider({ children }: { children: ReactNode }) {
               : "/default-cover.png",
             audio_url:
               track.fileName || track.file_name
-                ? `${API_BASE}/storage/music/${track.fileName || track.file_name}`
+                ? `${API_BASE}/music/${track.fileName || track.file_name}`
                 : null,
             duration: track.durationSeconds
               ? `${Math.floor(track.durationSeconds / 60)
@@ -174,6 +189,38 @@ export function MenuProvider({ children }: { children: ReactNode }) {
       console.error("Like error dr backend, tap UI udah ke-update kok:", err);
       // Kalau ngga mau refresh gpp, UI udah jalan
     }
+  };
+
+  const getTrackKey = (track: any) =>
+    `${track?.id ?? "unknown"}::${track?.audio_url ?? ""}`;
+
+  const handleAddToQueue = () => {
+    if (!activeTrack) return;
+    const targetKey = getTrackKey(activeTrack);
+    const currentKey = currentTrack ? getTrackKey(currentTrack) : null;
+
+    setTracks((prev) => {
+      // Buang duplikat track yang sama, KECUALI kalo dia lagi diputar
+      const filtered = prev.filter(
+        (t) => getTrackKey(t) !== targetKey || getTrackKey(t) === currentKey,
+      );
+
+      if (!currentKey) return [...filtered, activeTrack];
+
+      const currentIdx = filtered.findIndex(
+        (t) => getTrackKey(t) === currentKey,
+      );
+      if (currentIdx === -1) return [...filtered, activeTrack];
+
+      return [
+        ...filtered.slice(0, currentIdx + 1),
+        activeTrack,
+        ...filtered.slice(currentIdx + 1),
+      ];
+    });
+
+    showToast(`Added to queue: ${activeTrack.title || "Track"}`);
+    setIsOpen(false);
   };
 
   const handleAddToPlaylist = async (playlistId: number) => {
@@ -310,7 +357,10 @@ export function MenuProvider({ children }: { children: ReactNode }) {
               )}
             </button>
 
-            <button className="w-full flex items-center gap-3 px-3 py-2 text-xs hover:bg-white/10 transition-colors">
+            <button
+              onClick={handleAddToQueue}
+              className="w-full flex items-center gap-3 px-3 py-2 text-xs hover:bg-white/10 transition-colors"
+            >
               <span>➕</span> Add to queue
             </button>
 
@@ -327,6 +377,16 @@ export function MenuProvider({ children }: { children: ReactNode }) {
               </>
             )}
           </div>
+        </div>
+      )}
+
+      {toast && (
+        <div
+          className="fixed z-[300] left-1/2 -translate-x-1/2 bottom-[140px] md:bottom-32 px-4 py-2 rounded-full bg-[#72fe8f] text-black text-xs font-bold tracking-wide shadow-[0_0_20px_rgba(114,254,143,0.4)] animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none max-w-[90vw] truncate"
+          role="status"
+          aria-live="polite"
+        >
+          {toast}
         </div>
       )}
     </MenuContext.Provider>
