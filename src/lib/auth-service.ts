@@ -6,15 +6,9 @@ export const initCsrf = async () => {
 };
 
 export const loginWithGoogle = async () => {
-  try {
-    // 1. Inisialisasi CSRF dulu biar aman
-    await initCsrf();
-    // 2. Redirect ke backend
-    window.location.href = `${api.defaults.baseURL}/api/auth/google/redirect`;
-  } catch (err: any) {
-    throw err.response?.data?.message || "Gagal inisiasi Google Login! 🗿";
-  }
+  window.location.href = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/google/redirect`;
 };
+
 
 // 3. FUNGSI BARU: Nangkep user setelah redirect Google
 export const handleGoogleCallback = async () => {
