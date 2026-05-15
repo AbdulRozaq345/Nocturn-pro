@@ -14,23 +14,25 @@ export default function OfflineSyncProvider() {
 
     let cancelled = false;
 
-    const run = async () => {
-      // Dulu push lokal → server (kalau ada track yang disimpan saat offline)
+    const runSync = async () => {
+      if (!navigator.onLine) return; // Skip entirely when offline
       await pushLocalToServer().catch(() => {});
-
-      // Lalu download dari server → lokal (kalau ada yang belum ada lokal)
       await syncOfflineFromServer((p) => {
         if (!cancelled) setProgress(p);
-      });
-
+      }).catch(() => {});
       if (!cancelled) setProgress(null);
     };
 
-    // Delay sedikit agar tidak block initial render
-    const timer = setTimeout(run, 3000);
+    // Push any local-only tracks to server when connection is restored
+    const handleOnline = () => pushLocalToServer().catch(() => {});
+
+    const timer = setTimeout(runSync, 3000);
+    window.addEventListener("online", handleOnline);
+
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      window.removeEventListener("online", handleOnline);
     };
   }, []);
 
@@ -49,7 +51,6 @@ export default function OfflineSyncProvider() {
           </span>
         )}
       </div>
-      {/* Progress bar */}
       <div className="w-16 h-1 bg-white/10 rounded-full overflow-hidden flex-shrink-0">
         <div
           className="h-full bg-[#72fe8f] rounded-full transition-all"

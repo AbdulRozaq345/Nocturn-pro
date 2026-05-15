@@ -198,6 +198,9 @@ export default function Player() {
         // Putar lagu pertama dulu biar gak kerasa delay nunggu API
         playTrackImmediate(tracks[0]);
 
+        // Jangan fetch kalau sedang offline
+        if (!navigator.onLine) return;
+
         // Fetch diam-diam di background dan perbarui antrean saat selesai
         api
           .get("/api/tracks")

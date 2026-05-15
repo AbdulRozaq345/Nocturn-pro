@@ -81,7 +81,7 @@ export default function DownloadedLibrary() {
   const handleDelete = async (id: string) => {
     setDeletingId(id);
     await removeOfflineTrack(id);
-    await unmarkOfflineOnServer(id).catch(() => {});
+    unmarkOfflineOnServer(id).catch(() => {}); // fire-and-forget, tidak perlu tunggu network
     if (blobUrlsRef.current[id]) {
       URL.revokeObjectURL(blobUrlsRef.current[id]);
       delete blobUrlsRef.current[id];
