@@ -9,7 +9,7 @@ import {
 } from "react";
 import api from "@/lib/axios"; // Import instance axios kita yang udah di-set base URL-nya
 import { usePlayer } from "@/context/PlayerContext";
-import { applyPersistedLikeState, setPersistedLikedTrackId } from "@/lib/utils";
+import { applyPersistedLikeState, setPersistedLikedTrackId, buildCoverUrl } from "@/lib/utils";
 
 interface MenuContextType {
   showMenu: (
@@ -75,7 +75,7 @@ export function MenuProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Import player context untuk sync like state
-  const { tracks, setTracks, currentTrack, setCurrentTrack } = usePlayer();
+  const { tracks, setTracks, queue, setQueue, currentTrack, setCurrentTrack } = usePlayer();
 
   const refreshTracks = async () => {
     try {
@@ -87,13 +87,14 @@ export function MenuProvider({ children }: { children: ReactNode }) {
         const API_BASE =
           api.defaults.baseURL || "https://panel.nexxacodeid.site";
         const updatedTracks = rawData
-          .map((track) => ({
+          .map((track) => {
+            const albumArt = buildCoverUrl(track.playlistCover, API_BASE);
+            return {
             ...track,
             title: track.trackTitle || "Unknown Title",
             artist: track.artistName || "Unknown Artist",
-            cover_url: track.playlistCover
-              ? `${API_BASE}/storage/${track.playlistCover}`
-              : "/default-cover.png",
+            albumArt,
+            cover_url: albumArt,
             audio_url:
               track.fileName || track.file_name
                 ? `${API_BASE}/music/${track.fileName || track.file_name}`
@@ -107,7 +108,7 @@ export function MenuProvider({ children }: { children: ReactNode }) {
                   )}:${(track.durationSeconds % 60).toString().padStart(2, "0")}`
               : "00:00",
             is_liked: track.is_liked || false,
-          }))
+          };})
           .map(applyPersistedLikeState);
         setTracks(updatedTracks);
       }
@@ -191,34 +192,9 @@ export function MenuProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const getTrackKey = (track: any) =>
-    `${track?.id ?? "unknown"}::${track?.audio_url ?? ""}`;
-
   const handleAddToQueue = () => {
     if (!activeTrack) return;
-    const targetKey = getTrackKey(activeTrack);
-    const currentKey = currentTrack ? getTrackKey(currentTrack) : null;
-
-    setTracks((prev) => {
-      // Buang duplikat track yang sama, KECUALI kalo dia lagi diputar
-      const filtered = prev.filter(
-        (t) => getTrackKey(t) !== targetKey || getTrackKey(t) === currentKey,
-      );
-
-      if (!currentKey) return [...filtered, activeTrack];
-
-      const currentIdx = filtered.findIndex(
-        (t) => getTrackKey(t) === currentKey,
-      );
-      if (currentIdx === -1) return [...filtered, activeTrack];
-
-      return [
-        ...filtered.slice(0, currentIdx + 1),
-        activeTrack,
-        ...filtered.slice(currentIdx + 1),
-      ];
-    });
-
+    setQueue((prev) => [...prev, activeTrack]);
     showToast(`Added to queue: ${activeTrack.title || "Track"}`);
     setIsOpen(false);
   };
@@ -256,6 +232,21 @@ export function MenuProvider({ children }: { children: ReactNode }) {
         `Gagal bikin playlist: ${err.response?.data?.message || err.message}`,
       );
     }
+  };
+
+  const handleDownload = () => {
+    if (!activeTrack?.id) return;
+    const API_BASE =
+      api.defaults.baseURL || "https://panel.nexxacodeid.site";
+    const downloadUrl = `${API_BASE}/api/tracks/${activeTrack.id}/download`;
+    const a = document.createElement("a");
+    a.href = downloadUrl;
+    a.download = "";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    showToast(`Downloading: ${activeTrack.title || "Track"}`);
+    setIsOpen(false);
   };
 
   // Logic Hapus dari Playlist
@@ -362,6 +353,16 @@ export function MenuProvider({ children }: { children: ReactNode }) {
               className="w-full flex items-center gap-3 px-3 py-2 text-xs hover:bg-white/10 transition-colors"
             >
               <span>➕</span> Add to queue
+            </button>
+
+            <div className="h-[1px] bg-white/5 my-1" />
+
+            {/* DOWNLOAD */}
+            <button
+              onClick={handleDownload}
+              className="w-full flex items-center gap-3 px-3 py-2 text-xs hover:bg-white/10 transition-colors text-[#72fe8f]"
+            >
+              <span>⬇️</span> Download
             </button>
 
             {/* REMOVE FROM PLAYLIST (DYNAMIS) */}

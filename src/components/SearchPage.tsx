@@ -12,7 +12,8 @@ import {
 } from "lucide-react";
 import { usePlayer } from "@/context/PlayerContext";
 import { useGlobalMenu } from "@/context/MenuContext";
-import { applyPersistedLikeState } from "@/lib/utils";
+import { applyPersistedLikeState, buildCoverUrl } from "@/lib/utils";
+import { sortByVibe, getPlayStats } from "@/lib/playStats";
 
 import Link from "next/link";
 
@@ -47,7 +48,7 @@ export default function SearchPage() {
   });
   const [showAllHistory, setShowAllHistory] = useState(false);
 
-  const { setCurrentTrack, setIsPlaying, setTracks } = usePlayer();
+  const { setCurrentTrack, setIsPlaying, setTracks, currentTrack } = usePlayer();
   const { showMenu } = useGlobalMenu();
 
   const getHistoryStorageKey = () => {
@@ -135,6 +136,7 @@ export default function SearchPage() {
                 ...track,
                 title: track.trackTitle || track.title || "Unknown Title",
                 artist: track.artistName || track.artist || "Unknown Artist",
+                albumArt: buildCoverUrl(track.playlistCover, API_BASE),
                 audio_url:
                   track.fileName || track.file_name
                     ? `${API_BASE}/music/${track.fileName || track.file_name}`
@@ -257,13 +259,18 @@ export default function SearchPage() {
         song.artistName?.toLowerCase().includes(query.toLowerCase()),
     );
 
-    // Ambil beberapa lagu dari database (yang bukan hasil search) untuk direkomendasikan
+    // Referensi vibe: currentTrack (yang sedang diputar) atau lagu pertama hasil pencarian
+    const vibeRef = currentTrack || matchedSongs[0] || null;
+
     const otherSongs = databaseSongs.filter(
       (song) =>
         !song.trackTitle?.toLowerCase().includes(query.toLowerCase()) &&
         !song.artistName?.toLowerCase().includes(query.toLowerCase()),
     );
-    const recommendedSongs = otherSongs.slice(0, 8); // Tampilkan 8 rekomendasi saja
+
+    // Urutkan berdasarkan vibe — artis sama & kata judul serupa naik ke atas,
+    // lagu yang sering diputar user juga diprioritaskan
+    const recommendedSongs = sortByVibe(otherSongs, vibeRef, getPlayStats()).slice(0, 8);
 
     const handlePlaySong = (song: any, list: any[]) => {
       if (query.trim()) {
@@ -340,9 +347,16 @@ export default function SearchPage() {
         {/* Lagu Rekomendasi di Database */}
         {recommendedSongs.length > 0 && (
           <div>
-            <h3 className="text-xs font-mono text-gray-500 uppercase tracking-[0.2em] mb-3">
-              Lagu Rekomendasi
-            </h3>
+            <div className="flex flex-col mb-3 gap-0.5">
+              <h3 className="text-xs font-mono text-gray-500 uppercase tracking-[0.2em]">
+                {vibeRef ? "Vibe Serupa" : "Lagu Rekomendasi"}
+              </h3>
+              {vibeRef && (
+                <p className="text-[10px] font-mono text-[#72fe8f]/60 truncate">
+                  berdasarkan: {vibeRef.title || vibeRef.trackTitle || "lagu saat ini"}
+                </p>
+              )}
+            </div>
             <div className="flex flex-col gap-3">
               {recommendedSongs.map((song) => (
                 <div

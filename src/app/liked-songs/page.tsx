@@ -5,7 +5,7 @@ import { Play, Shuffle, Download, MoreHorizontal, Heart } from "lucide-react";
 import api from "@/lib/axios";
 import { usePlayer } from "@/context/PlayerContext";
 import { useGlobalMenu } from "@/context/MenuContext";
-import { applyPersistedLikeState } from "@/lib/utils";
+import { applyPersistedLikeState, buildCoverUrl } from "@/lib/utils";
 
 export default function LikedSongs() {
   const { setTracks, setCurrentTrack, setIsPlaying } = usePlayer();
@@ -16,13 +16,13 @@ export default function LikedSongs() {
   const normalizeTrack = (track: any, forceLiked = false) => {
     const API_BASE = api.defaults.baseURL || "https://panel.nexxacodeid.site";
 
+    const albumArt = buildCoverUrl(track.playlistCover, API_BASE);
     return {
       ...track,
       title: track.trackTitle || track.title || "Unknown Title",
       artist: track.artistName || track.artist || "Unknown Artist",
-      cover_url: track.playlistCover
-        ? `${API_BASE}/storage/${track.playlistCover}`
-        : "/default-cover.png",
+      albumArt,
+      cover_url: albumArt,
       audio_url:
         track.fileName || track.file_name
           ? `${API_BASE}/music/${track.fileName || track.file_name}`
@@ -109,6 +109,21 @@ export default function LikedSongs() {
     setIsPlaying(true);
   };
 
+  const handleDownloadAll = () => {
+    if (likedTracks.length === 0) return;
+    const API_BASE = api.defaults.baseURL || "https://panel.nexxacodeid.site";
+    likedTracks.forEach((track, i) => {
+      setTimeout(() => {
+        const a = document.createElement("a");
+        a.href = `${API_BASE}/api/tracks/${track.id}/download`;
+        a.download = "";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }, i * 800);
+    });
+  };
+
   return (
     <main className="flex-1 relative overflow-y-auto custom-scrollbar bg-black pb-32">
       {/* Hero Header Section - Samain kayak Playlist Page */}
@@ -177,7 +192,12 @@ export default function LikedSongs() {
           <button className="text-gray-400 hover:text-[#72fe8f] transition-colors">
             <Shuffle size={24} />
           </button>
-          <button className="text-gray-400 hover:text-[#72fe8f] transition-colors">
+          <button
+            onClick={handleDownloadAll}
+            disabled={likedTracks.length === 0}
+            title="Download semua liked songs"
+            className="text-gray-400 hover:text-[#72fe8f] transition-colors disabled:opacity-40"
+          >
             <Download size={24} />
           </button>
           <button className="text-gray-400 hover:text-[#72fe8f] transition-colors">
@@ -222,6 +242,22 @@ export default function LikedSongs() {
                   <span className="text-xs font-mono text-[#a1a1aa] hidden md:block">
                     {track.duration || "00:00"}
                   </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const API_BASE = api.defaults.baseURL || "https://panel.nexxacodeid.site";
+                      const a = document.createElement("a");
+                      a.href = `${API_BASE}/api/tracks/${track.id}/download`;
+                      a.download = "";
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                    }}
+                    title="Download lagu ini"
+                    className="text-[#a1a1aa] hover:text-[#72fe8f] transition-colors p-1 opacity-0 group-hover:opacity-100"
+                  >
+                    <Download size={16} />
+                  </button>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();

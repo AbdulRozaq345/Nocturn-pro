@@ -20,6 +20,7 @@ import { usePlayer } from "@/context/PlayerContext";
 import { useGlobalMenu } from "@/context/MenuContext"; // Tambahin ini buat fungsi menu
 import { useAudioAnalyser } from "@/context/AudioAnalyserContext";
 import api from "@/lib/axios";
+import { recordPlay, getPlayStats, weightedShuffle } from "@/lib/playStats";
 import CurvedLoop from "./CurvedLoop";
 import MobileOverlay from "./MobileOverlay"; // Import overlay baru
 
@@ -27,6 +28,8 @@ export default function Player() {
   const {
     tracks,
     setTracks,
+    queue,
+    setQueue,
     currentTrack,
     setCurrentTrack,
     isPlaying,
@@ -82,6 +85,7 @@ export default function Player() {
   // Putar track tertentu secara imperative — bypass React render cycle biar instant
   const playTrackImmediate = (track: any) => {
     if (!track) return;
+    recordPlay(track.id);
     setCurrentTrack(track);
     setIsPlaying(true);
 
@@ -125,8 +129,18 @@ export default function Player() {
   };
 
   const playNext = async () => {
-    if (!currentTrack || tracks.length === 0) return;
+    if (!currentTrack && tracks.length === 0 && queue.length === 0) return;
     setHistory((prev) => [...prev, currentTrack]);
+
+    // Konsumsi queue user-added dulu (FIFO)
+    if (queue.length > 0) {
+      const [next, ...rest] = queue;
+      setQueue(rest);
+      playTrackImmediate(next);
+      return;
+    }
+
+    if (!currentTrack || tracks.length === 0) return;
 
     const currentIndexByKey = tracks.findIndex(
       (t) => getTrackKey(t) === getTrackKey(currentTrack),
@@ -136,8 +150,8 @@ export default function Player() {
       currentIndexByKey >= 0 ? currentIndexByKey : currentIndexById;
 
     if (isShuffle) {
-      const randomIndex = Math.floor(Math.random() * tracks.length);
-      playTrackImmediate(tracks[randomIndex]);
+      const next = weightedShuffle(tracks, currentTrack?.id ?? null, getPlayStats());
+      playTrackImmediate(next);
       return;
     }
 
@@ -490,18 +504,12 @@ export default function Player() {
           {/* Kiri: Cover & Info */}
           <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
             <div className="w-10 h-10 rounded-md overflow-hidden bg-[#2a2a2a] flex-shrink-0 relative shadow-sm">
-              {currentTrack ? (
-                <img
-                  className="text-transparent w-full h-full object-cover bg-white/5 animate-pulse text-[0px]"
-                  src={"/nocturn.avif"}
-                  alt="Cover"
-                />
-              ) : (
-                <img
-                  src={"/nocturn.avif"}
-                  className="text-gray-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
-                />
-              )}
+              <img
+                className="text-transparent w-full h-full object-cover text-[0px]"
+                src={currentTrack?.albumArt || currentTrack?.cover_url || "/nocturn.avif"}
+                alt="Cover"
+                onError={(e) => { (e.target as HTMLImageElement).src = "/nocturn.avif"; }}
+              />
             </div>
 
             <div className="flex flex-col truncate flex-1 min-w-0">
@@ -560,16 +568,25 @@ export default function Player() {
             onClick={() => setIsMaximized(true)}
             className="flex items-center gap-4 w-1/4 min-w-0 cursor-pointer"
           >
-            <div className="w-14 h-14 bg-[#121212] rounded-md overflow-hidden border border-white/5 flex-shrink-0 items-center justify-center relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent animate-pulse" />
+            <div className="w-14 h-14 bg-[#121212] rounded-md overflow-hidden border border-white/5 flex-shrink-0 relative group">
               {currentTrack ? (
-                <img
-                  className="text-transparent w-full h-full object-cover relative z-10 bg-white/5 animate-pulse text-[0px]"
-                  src={"/nocturn.avif"}
-                  alt="Cover"
-                />
+                <>
+                  {/* Blurred cover sebagai background glow */}
+                  <img
+                    aria-hidden
+                    src={currentTrack.albumArt || currentTrack.cover_url || "/nocturn.avif"}
+                    className="absolute inset-0 w-full h-full object-cover scale-110 opacity-60"
+                    style={{ filter: "blur(8px)" }}
+                  />
+                  <img
+                    className="w-full h-full object-cover relative z-10 group-hover:scale-105 transition-transform duration-300 text-[0px]"
+                    src={currentTrack.albumArt || currentTrack.cover_url || "/nocturn.avif"}
+                    alt="Cover"
+                    onError={(e) => { (e.target as HTMLImageElement).src = "/nocturn.avif"; }}
+                  />
+                </>
               ) : (
-                <Music size={16} className="text-gray-700 relative z-10" />
+                <Music size={16} className="text-gray-700 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
               )}
             </div>
 
@@ -674,6 +691,15 @@ export default function Player() {
 
           {/* Volume Bagian Kanan */}
           <div className="flex items-center justify-end gap-4 w-1/4 text-gray-500 group/volume">
+            {/* Queue badge */}
+            {queue.length > 0 && (
+              <div className="relative flex items-center cursor-default" title={`${queue.length} lagu di queue`}>
+                <MonitorSpeaker size={16} className="text-[#72fe8f]" />
+                <span className="absolute -top-2 -right-2 bg-[#72fe8f] text-black text-[8px] font-black rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5 leading-none">
+                  {queue.length > 99 ? "99+" : queue.length}
+                </span>
+              </div>
+            )}
             <button onClick={toggleMute} className="hover:text-white">
               {isMuted || volume === 0 ? (
                 <VolumeX size={18} className="text-red-500" />

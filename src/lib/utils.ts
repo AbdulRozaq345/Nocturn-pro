@@ -80,6 +80,23 @@ export function clearPersistedLikedTrackIds() {
   }
 }
 
+/**
+ * Bangun URL cover yang benar dari field playlistCover.
+ * - null/kosong  → fallback
+ * - URL penuh    → pakai langsung
+ * - nama file    → prefiks dengan {apiBase}/covers/
+ */
+export function buildCoverUrl(
+  playlistCover: string | null | undefined,
+  apiBase: string,
+  fallback = "/nocturn.avif",
+): string {
+  if (!playlistCover) return fallback;
+  if (playlistCover.startsWith("http://") || playlistCover.startsWith("https://"))
+    return playlistCover;
+  return `${apiBase}/covers/${playlistCover}`;
+}
+
 export function applyPersistedLikeState(track: any) {
   const likedTrackIds = getPersistedLikedTrackIds();
   const trackId = track?.id;

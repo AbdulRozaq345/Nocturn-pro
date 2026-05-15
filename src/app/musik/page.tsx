@@ -5,7 +5,7 @@ import { ArrowLeft, Play, MoreVertical } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { usePlayer } from "@/context/PlayerContext";
 import { useGlobalMenu } from "@/context/MenuContext";
-import { applyPersistedLikeState } from "@/lib/utils";
+import { applyPersistedLikeState, buildCoverUrl } from "@/lib/utils";
 
 const formatDuration = (seconds: number) => {
   if (!seconds) return "00:00";
@@ -38,6 +38,7 @@ export default function MusikPage() {
             ...track,
             title: track.trackTitle || track.title || "Unknown Title",
             artist: track.artistName || track.artist || "Unknown Artist",
+            albumArt: buildCoverUrl(track.playlistCover, API_BASE),
             audio_url:
               track.fileName || track.file_name
                 ? `${API_BASE}/music/${track.fileName || track.file_name}`

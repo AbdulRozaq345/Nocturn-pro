@@ -54,9 +54,10 @@ export default function TrackList({
                 <div className="w-8 h-8 md:w-10 md:h-10 bg-[#121212] rounded-sm flex-shrink-0 border border-white/5 flex items-center justify-center relative overflow-hidden group-hover:border-[#72fe8f]/30 transition-colors">
                   <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent animate-pulse" />
                   <img
-                    src={track.albumArt || "/nocturn.avif"}
+                    src={track.albumArt || track.cover_url || "/nocturn.avif"}
                     className="text-gray-700 group-hover:text-[#72fe8f] transition-colors w-full h-full object-cover"
                     alt={track.title || "Track Cover"}
+                    onError={(e) => { (e.target as HTMLImageElement).src = "/nocturn.avif"; }}
                   />
                 </div>
 

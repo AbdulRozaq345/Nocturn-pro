@@ -2,6 +2,7 @@
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import api from "@/lib/axios";
+import { buildCoverUrl } from "@/lib/utils";
 import { usePlayer } from "@/context/PlayerContext";
 import { Play, Music } from "lucide-react";
 import { useGlobalMenu } from "@/context/MenuContext";
@@ -22,13 +23,14 @@ export default function PlaylistPage() {
         const data = res.data.data || res.data;
 
         if (data && data.tracks && Array.isArray(data.tracks)) {
-          data.tracks = data.tracks.map((track: any) => ({
+          data.tracks = data.tracks.map((track: any) => {
+            const albumArt = buildCoverUrl(track.playlistCover, API_BASE);
+            return {
             ...track,
             title: track.trackTitle || track.title || "Unknown Title",
             artist: track.artistName || track.artist || "Unknown Artist",
-            cover_url: track.playlistCover
-              ? `${API_BASE}/storage/${track.playlistCover}`
-              : track.cover_url || "/default-cover.png",
+            albumArt,
+            cover_url: albumArt,
             audio_url:
               track.fileName || track.file_name
                 ? `${API_BASE}/music/${track.fileName || track.file_name}`
@@ -41,7 +43,7 @@ export default function PlaylistPage() {
                     "0",
                   )}:${(track.durationSeconds % 60).toString().padStart(2, "0")}`
               : track.duration || "00:00",
-          }));
+          };});
         }
         setPlaylist(data);
       } catch (err: any) {
