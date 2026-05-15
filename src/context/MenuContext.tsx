@@ -10,6 +10,8 @@ import {
 import api from "@/lib/axios"; // Import instance axios kita yang udah di-set base URL-nya
 import { usePlayer } from "@/context/PlayerContext";
 import { applyPersistedLikeState, setPersistedLikedTrackId, buildCoverUrl } from "@/lib/utils";
+import { saveOfflineTrack, isOfflineAvailable, fetchImageAsDataUrl } from "@/lib/offlineStorage";
+import { markOfflineOnServer, unmarkOfflineOnServer } from "@/lib/offlineSync";
 
 interface MenuContextType {
   showMenu: (
@@ -249,6 +251,47 @@ export function MenuProvider({ children }: { children: ReactNode }) {
     setIsOpen(false);
   };
 
+  const [savingOffline, setSavingOffline] = useState(false);
+  const [isAlreadyOffline, setIsAlreadyOffline] = useState(false);
+
+  const handleSaveOffline = async () => {
+    if (!activeTrack?.id || savingOffline) return;
+    const API_BASE = api.defaults.baseURL || "https://panel.nexxacodeid.site";
+    setIsOpen(false);
+    setSavingOffline(true);
+    showToast("Menyimpan offline...");
+
+    try {
+      const audioUrl = activeTrack.audio_url ||
+        `${API_BASE}/music/${activeTrack.fileName || activeTrack.file_name}`;
+      const res = await fetch(audioUrl);
+      if (!res.ok) throw new Error("Gagal unduh audio");
+      const audioBlob = await res.blob();
+
+      const coverUrl = activeTrack.albumArt || activeTrack.cover_url || "/nocturn.avif";
+      const coverDataUrl = coverUrl.startsWith("data:")
+        ? coverUrl
+        : await fetchImageAsDataUrl(coverUrl);
+
+      await saveOfflineTrack(activeTrack, audioBlob, coverDataUrl);
+      // Tandai di backend agar sync ke device lain
+      await markOfflineOnServer(activeTrack.id).catch(() => {});
+      showToast(`Tersimpan offline: ${activeTrack.title || "Track"}`);
+      setIsAlreadyOffline(true);
+    } catch (err) {
+      console.error("Gagal simpan offline:", err);
+      showToast("Gagal simpan offline");
+    } finally {
+      setSavingOffline(false);
+    }
+  };
+
+  // Cek status offline saat menu dibuka untuk track aktif
+  useEffect(() => {
+    if (!activeTrack?.id) return;
+    isOfflineAvailable(String(activeTrack.id)).then(setIsAlreadyOffline);
+  }, [activeTrack?.id]);
+
   // Logic Hapus dari Playlist
   const handleRemoveFromPlaylist = async () => {
     if (!confirm("Beneran mau hapus dari playlist ini?")) return;
@@ -363,6 +406,21 @@ export function MenuProvider({ children }: { children: ReactNode }) {
               className="w-full flex items-center gap-3 px-3 py-2 text-xs hover:bg-white/10 transition-colors text-[#72fe8f]"
             >
               <span>⬇️</span> Download
+            </button>
+
+            {/* SAVE OFFLINE */}
+            <button
+              onClick={handleSaveOffline}
+              disabled={savingOffline || isAlreadyOffline}
+              className="w-full flex items-center gap-3 px-3 py-2 text-xs hover:bg-white/10 transition-colors disabled:opacity-50"
+            >
+              {isAlreadyOffline ? (
+                <><span>✅</span> <span className="text-[#72fe8f]">Sudah Offline</span></>
+              ) : savingOffline ? (
+                <><span>⏳</span> Menyimpan...</>
+              ) : (
+                <><span>📥</span> Simpan Offline</>
+              )}
             </button>
 
             {/* REMOVE FROM PLAYLIST (DYNAMIS) */}

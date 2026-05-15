@@ -8,6 +8,7 @@ import {
   Search,
   LogOut,
   Plus,
+  WifiOff,
 } from "lucide-react";
 import api from "@/lib/axios";
 import { logout } from "@/lib/auth-service";
@@ -82,15 +83,18 @@ export default function Sidebar() {
         </Link>
         <Link
           href="/YourLibrary"
-          className="flex flex-col items-center justify-center gap-1 w-1/3 text-[#a1a1aa] hover:text-white transition-colors"
+          className="flex flex-col items-center justify-center gap-1 w-1/4 text-[#a1a1aa] hover:text-white transition-colors"
         >
           <Library size={22} />
-          <span className="text-[9px] font-sans tracking-wide">
-            Koleksi Kamu
-          </span>
+          <span className="text-[9px] font-sans tracking-wide">Koleksi</span>
         </Link>
-        
-        
+        <Link
+          href="/downloaded"
+          className="flex flex-col items-center justify-center gap-1 w-1/4 text-[#a1a1aa] hover:text-white transition-colors"
+        >
+          <WifiOff size={22} />
+          <span className="text-[9px] font-sans tracking-wide">Offline</span>
+        </Link>
       </div>
 
       {/* Desktop Sidebar (Hidden on Mobile) */}
@@ -170,6 +174,11 @@ export default function Sidebar() {
               icon={<Heart size={18} />}
               label="Liked Songs"
               href="/liked-songs"
+            />
+            <NavItem
+              icon={<WifiOff size={18} />}
+              label="Downloaded"
+              href="/downloaded"
             />
           </div>
 

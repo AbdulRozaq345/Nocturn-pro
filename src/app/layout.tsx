@@ -11,6 +11,7 @@ import Sidebar from "@/components/sidebar";
 import Topbar from "@/components/topbar";
 import Player from "@/components/player";
 import MaintenanceAlert from "@/components/alert";
+import OfflineSyncProvider from "@/components/OfflineSyncProvider";
 
 export default function RootLayout({
   children,
@@ -55,6 +56,7 @@ export default function RootLayout({
                 </div>
               </div>
               <Player />
+              <OfflineSyncProvider />
             </MenuProvider>
           </AudioAnalyserProvider>
         </PlayerProvider>
