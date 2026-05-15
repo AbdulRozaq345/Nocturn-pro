@@ -13,6 +13,8 @@ import {
   Shuffle,
   Repeat,
   Heart,
+  X,
+  Music,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -24,12 +26,30 @@ const FullscreenVisualizer = dynamic(
 export default function MobileOverlay({
   onClose,
   currentTrack,
+  isLiked,
+  handleToggleLike,
+  upcomingTracks = [],
   ...props
 }: any) {
   const [imgError, setImgError] = useState(false);
+  const [showQueue, setShowQueue] = useState(false);
+
   const coverSrc = !imgError
     ? currentTrack?.albumArt || currentTrack?.cover_url || "/nocturn.avif"
     : "/nocturn.avif";
+
+  const handleShare = async () => {
+    const title = currentTrack?.title || "Lagu";
+    const artist = currentTrack?.artist || "";
+    const text = artist ? `${title} — ${artist}` : title;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url: window.location.href });
+      } else {
+        await navigator.clipboard.writeText(`${text} — ${window.location.href}`);
+      }
+    } catch {}
+  };
 
   return (
     <div className="fixed inset-0 z-[200] flex flex-col animate-[slideIn_0.3s_ease-out] overflow-hidden">
@@ -57,7 +77,6 @@ export default function MobileOverlay({
           style={{ filter: "blur(48px) brightness(0.3) saturate(1.6)" }}
           aria-hidden
         />
-        {/* extra dark gradient so text stays readable */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/80" />
       </div>
 
@@ -65,6 +84,52 @@ export default function MobileOverlay({
       <div className="absolute inset-0 opacity-30 pointer-events-none">
         <FullscreenVisualizer />
       </div>
+
+      {/* ── Queue Panel (slide-up overlay) ── */}
+      {showQueue && (
+        <div className="absolute inset-0 z-20 flex flex-col bg-black/90 backdrop-blur-xl pt-4">
+          <div className="flex items-center justify-between px-6 mb-4">
+            <span className="font-mono text-xs tracking-[0.3em] text-[#72fe8f] uppercase">
+              Selanjutnya
+            </span>
+            <button onClick={() => setShowQueue(false)} className="text-gray-400 hover:text-white">
+              <X size={20} />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto px-4">
+            {upcomingTracks.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-40 gap-3 text-center">
+                <Music size={32} className="text-gray-700" />
+                <p className="text-xs font-mono text-gray-600 uppercase tracking-widest">Queue kosong</p>
+              </div>
+            ) : (
+              upcomingTracks.map((t: any, i: number) => (
+                <div key={t.id ?? i} className="flex items-center gap-3 py-3 border-b border-white/5">
+                  <div className="w-10 h-10 rounded-md overflow-hidden bg-[#1a1a1a] flex-shrink-0">
+                    <img
+                      src={t.albumArt || t.cover_url || "/nocturn.avif"}
+                      alt={t.title}
+                      className="w-full h-full object-cover"
+                      onError={(e) => { (e.target as HTMLImageElement).src = "/nocturn.avif"; }}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-white truncate uppercase tracking-tight">
+                      {t.title || "Unknown"}
+                    </p>
+                    <p className="text-[10px] font-mono text-gray-500 truncate uppercase">
+                      {t.artist || ""}
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-mono text-gray-600 flex-shrink-0">
+                    {i === 0 ? "NEXT" : `+${i}`}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Foreground UI ── */}
       <div className="relative z-10 flex flex-col h-full px-6 pt-4 pb-8">
@@ -94,23 +159,18 @@ export default function MobileOverlay({
         <div className="flex-1 flex items-center justify-center">
           <div
             className="relative w-72 h-72 md:w-80 md:h-80"
-            style={{
-              filter: "drop-shadow(0 24px 64px rgba(0,0,0,0.8))",
-            }}
+            style={{ filter: "drop-shadow(0 24px 64px rgba(0,0,0,0.8))" }}
           >
-            {/* Glow ring saat playing */}
             {props.isPlaying && (
               <div
                 className="absolute -inset-3 rounded-2xl opacity-40"
                 style={{
-                  background:
-                    "conic-gradient(from 0deg, #72fe8f, transparent, #72fe8f)",
+                  background: "conic-gradient(from 0deg, #72fe8f, transparent, #72fe8f)",
                   animation: "spin-slow 4s linear infinite",
                   borderRadius: "20px",
                 }}
               />
             )}
-
             <img
               src={coverSrc}
               alt={currentTrack?.title || "Cover"}
@@ -135,8 +195,11 @@ export default function MobileOverlay({
               {currentTrack?.artist || "Unknown Artist"}
             </p>
           </div>
-          <button className="flex-shrink-0 p-2 text-[#72fe8f]">
-            <Heart size={24} fill="currentColor" />
+          <button
+            onClick={handleToggleLike}
+            className={`flex-shrink-0 p-2 transition-colors ${isLiked ? "text-[#72fe8f]" : "text-gray-500 hover:text-white"}`}
+          >
+            <Heart size={24} fill={isLiked ? "currentColor" : "none"} strokeWidth={isLiked ? 0 : 2} />
           </button>
         </div>
 
@@ -208,11 +271,19 @@ export default function MobileOverlay({
 
         {/* Bottom Actions */}
         <div className="flex justify-between items-center text-gray-500">
-          <button className="hover:text-white transition-colors">
+          <button onClick={handleShare} className="hover:text-white transition-colors">
             <Share2 size={20} />
           </button>
-          <button className="hover:text-white transition-colors">
+          <button
+            onClick={() => setShowQueue(true)}
+            className={`hover:text-white transition-colors relative ${upcomingTracks.length > 0 ? "text-[#72fe8f]" : ""}`}
+          >
             <ListMusic size={20} />
+            {upcomingTracks.length > 0 && (
+              <span className="absolute -top-2 -right-2 bg-[#72fe8f] text-black text-[8px] font-black rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5 leading-none">
+                {upcomingTracks.length}
+              </span>
+            )}
           </button>
         </div>
       </div>

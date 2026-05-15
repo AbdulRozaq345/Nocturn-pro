@@ -14,6 +14,8 @@ interface PlayerContextType {
   setTracks: Dispatch<SetStateAction<any[]>>;
   queue: any[];
   setQueue: Dispatch<SetStateAction<any[]>>;
+  shuffleQueue: any[];
+  setShuffleQueue: Dispatch<SetStateAction<any[]>>;
   currentTrack: any;
   setCurrentTrack: Dispatch<SetStateAction<any>>;
   isPlaying: boolean;
@@ -26,6 +28,7 @@ const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const [tracks, setTracks] = useState<any[]>([]);
   const [queue, setQueue] = useState<any[]>([]);
+  const [shuffleQueue, setShuffleQueue] = useState<any[]>([]);
   const [currentTrack, setCurrentTrack] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
@@ -40,6 +43,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setTracks,
         queue,
         setQueue,
+        shuffleQueue,
+        setShuffleQueue,
         currentTrack,
         setCurrentTrack,
         isPlaying,

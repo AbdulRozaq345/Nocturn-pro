@@ -38,14 +38,18 @@ export default function DownloadedLibrary() {
   const handlePlay = async (meta: OfflineTrackMeta) => {
     setPlayingId(meta.id);
     try {
-      // Pakai blob URL yang sudah ada, atau buat baru
-      if (!blobUrlsRef.current[meta.id]) {
-        const blob = await getOfflineAudioBlob(meta.id);
-        if (!blob) return;
-        blobUrlsRef.current[meta.id] = URL.createObjectURL(blob);
-      }
+      // Buat blob URL untuk semua track sekaligus supaya playNext bisa lanjut tanpa network
+      await Promise.all(
+        tracks.map(async (t) => {
+          if (blobUrlsRef.current[t.id]) return;
+          const blob = await getOfflineAudioBlob(t.id);
+          if (blob) blobUrlsRef.current[t.id] = URL.createObjectURL(blob);
+        }),
+      );
 
-      // Bangun daftar semua offline tracks sebagai player queue
+      if (!blobUrlsRef.current[meta.id]) return; // track yg dipilih nggak ada blobnya
+
+      // Bangun daftar semua offline tracks sebagai player queue (semua sudah punya blob URL)
       const offlineQueue = tracks.map((t) => ({
         id: t.id,
         title: t.title,
@@ -56,10 +60,6 @@ export default function DownloadedLibrary() {
         audio_url: blobUrlsRef.current[t.id] || "",
         is_liked: false,
       }));
-
-      // Pre-fill URL untuk track yang dipilih
-      offlineQueue.find((t) => t.id === meta.id)!.audio_url =
-        blobUrlsRef.current[meta.id];
 
       setPlayerTracks(offlineQueue);
       setCurrentTrack({

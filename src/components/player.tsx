@@ -11,18 +11,18 @@ import {
   VolumeX,
   Maximize2,
   Music,
-  MoreVertical,
   MonitorSpeaker,
-  Check,
+  Heart,
 } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { usePlayer } from "@/context/PlayerContext";
-import { useGlobalMenu } from "@/context/MenuContext"; // Tambahin ini buat fungsi menu
+import { useGlobalMenu } from "@/context/MenuContext";
 import { useAudioAnalyser } from "@/context/AudioAnalyserContext";
 import api from "@/lib/axios";
-import { recordPlay, getPlayStats, weightedShuffle } from "@/lib/playStats";
+import { recordPlay, getPlayStats, generateShuffleQueue } from "@/lib/playStats";
+import { setPersistedLikedTrackId } from "@/lib/utils";
 import CurvedLoop from "./CurvedLoop";
-import MobileOverlay from "./MobileOverlay"; // Import overlay baru
+import MobileOverlay from "./MobileOverlay";
 
 export default function Player() {
   const {
@@ -30,6 +30,8 @@ export default function Player() {
     setTracks,
     queue,
     setQueue,
+    shuffleQueue,
+    setShuffleQueue,
     currentTrack,
     setCurrentTrack,
     isPlaying,
@@ -55,7 +57,34 @@ export default function Player() {
   const playNextRef = useRef<() => void>(() => {});
   const playPreviousRef = useRef<() => void>(() => {});
 
-  const toggleShuffle = () => setIsShuffle(!isShuffle);
+  const toggleShuffle = () => {
+    setIsShuffle((prev) => {
+      const next = !prev;
+      if (next) {
+        // Generate urutan shuffle dari semua tracks sekarang
+        setShuffleQueue(
+          generateShuffleQueue(tracks, currentTrack?.id ?? null, getPlayStats()),
+        );
+      } else {
+        setShuffleQueue([]);
+      }
+      return next;
+    });
+  };
+
+  // Reset shuffle queue saat tracks diganti (playlist baru dimuat)
+  const prevTracksIdRef = useRef<string>("");
+  useEffect(() => {
+    const id = tracks.map((t) => t.id).join(",");
+    if (id !== prevTracksIdRef.current) {
+      prevTracksIdRef.current = id;
+      if (isShuffle) {
+        setShuffleQueue(
+          generateShuffleQueue(tracks, currentTrack?.id ?? null, getPlayStats()),
+        );
+      }
+    }
+  }, [tracks]);
 
   const getTrackKey = (track: any) =>
     `${track?.id ?? "unknown"}::${track?.audio_url ?? ""}`;
@@ -150,7 +179,12 @@ export default function Player() {
       currentIndexByKey >= 0 ? currentIndexByKey : currentIndexById;
 
     if (isShuffle) {
-      const next = weightedShuffle(tracks, currentTrack?.id ?? null, getPlayStats());
+      // Ambil dari depan shuffle queue; kalau habis → mulai siklus baru
+      const sq = shuffleQueue.length > 0
+        ? shuffleQueue
+        : generateShuffleQueue(tracks, currentTrack?.id ?? null, getPlayStats());
+      const [next, ...rest] = sq;
+      setShuffleQueue(rest);
       playTrackImmediate(next);
       return;
     }
@@ -237,6 +271,49 @@ export default function Player() {
       playNext();
     }
   };
+
+  // ── Like toggle ────────────────────────────────────────────────────────────
+  const handleToggleLike = async () => {
+    if (!currentTrack?.id) return;
+    const trackId = currentTrack.id;
+    const wasLiked = Boolean(currentTrack.is_liked);
+    const nowLiked = !wasLiked;
+
+    // Optimistic update
+    setCurrentTrack((prev: any) => prev ? { ...prev, is_liked: nowLiked } : prev);
+    setTracks((prev) =>
+      prev.map((t) => (t.id === trackId ? { ...t, is_liked: nowLiked } : t)),
+    );
+    setPersistedLikedTrackId(trackId, nowLiked);
+
+    try {
+      if (wasLiked) {
+        await api.delete(`/api/tracks/${trackId}/like`);
+      } else {
+        await api.post(`/api/tracks/${trackId}/like`);
+      }
+    } catch {
+      // Revert on error
+      setCurrentTrack((prev: any) => prev ? { ...prev, is_liked: wasLiked } : prev);
+      setTracks((prev) =>
+        prev.map((t) => (t.id === trackId ? { ...t, is_liked: wasLiked } : t)),
+      );
+      setPersistedLikedTrackId(trackId, wasLiked);
+    }
+  };
+
+  // ── Upcoming tracks untuk queue display di overlay ─────────────────────────
+  const upcomingTracks = useMemo(() => {
+    const fromQueue = queue.slice(0, 5);
+    const currentIdx = tracks.findIndex(
+      (t) => String(t.id) === String(currentTrack?.id),
+    );
+    const fromTracks =
+      currentIdx >= 0
+        ? tracks.slice(currentIdx + 1, currentIdx + 1 + (5 - fromQueue.length))
+        : [];
+    return [...fromQueue, ...fromTracks].slice(0, 5);
+  }, [queue, tracks, currentTrack]);
 
   const handleLoadedMetadata = () => {
     if (audioRef.current) {
@@ -526,22 +603,21 @@ export default function Player() {
           <div className="flex items-center gap-3 flex-shrink-0 pr-1">
             <button
               className="text-[#a1a1aa] hover:text-white transition-colors"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); setIsMaximized(true); }}
             >
               <MonitorSpeaker size={20} />
             </button>
 
-            {/* Tombol Like (Check) */}
+            {/* Tombol Like */}
             <button
-              className="text-[#1ed760] transition-colors"
-              onClick={(e) => {
-                e.stopPropagation();
-                /* Trigger Like from Context kalo butuh, untuk sekarang dummy visual */
-              }}
+              className={`transition-colors ${currentTrack?.is_liked ? "text-[#72fe8f]" : "text-[#a1a1aa] hover:text-white"}`}
+              onClick={(e) => { e.stopPropagation(); handleToggleLike(); }}
             >
-              <div className="bg-[#1ed760] text-black rounded-full flex items-center justify-center p-[2px]">
-                <Check size={16} strokeWidth={3} />
-              </div>
+              <Heart
+                size={20}
+                fill={currentTrack?.is_liked ? "currentColor" : "none"}
+                strokeWidth={currentTrack?.is_liked ? 0 : 2}
+              />
             </button>
 
             {/* Play/Pause */}
@@ -748,6 +824,9 @@ export default function Player() {
           repeatMode={repeatMode}
           toggleRepeat={toggleRepeat}
           formatTime={formatTime}
+          isLiked={Boolean(currentTrack?.is_liked)}
+          handleToggleLike={handleToggleLike}
+          upcomingTracks={upcomingTracks}
         />
       )}
     </>

@@ -48,6 +48,32 @@ export function weightedShuffle<T extends { id?: any }>(
   return pool[pool.length - 1];
 }
 
+/**
+ * Buat urutan shuffle lengkap dari semua tracks — "shuffle tanpa pengulangan".
+ * Semua lagu diputar sekali dulu sebelum siklus baru dimulai.
+ * Lagu yang sering diputar cenderung muncul lebih awal (weighted sort).
+ */
+export function generateShuffleQueue<T extends { id?: any }>(
+  tracks: T[],
+  excludeId: string | number | null,
+  stats: PlayStats,
+): T[] {
+  const pool =
+    excludeId != null
+      ? tracks.filter((t) => String(t.id) !== String(excludeId))
+      : [...tracks];
+
+  if (pool.length === 0) return [];
+
+  return [...pool]
+    .map((t) => ({
+      track: t,
+      key: Math.random() * Math.sqrt((stats[String((t as any).id)] || 0) + 1),
+    }))
+    .sort((a, b) => b.key - a.key)
+    .map((x) => x.track);
+}
+
 function titleWords(track: any): string[] {
   return (track?.title || track?.trackTitle || "")
     .toLowerCase()
