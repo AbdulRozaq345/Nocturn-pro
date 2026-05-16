@@ -36,6 +36,7 @@ export default function Player() {
     setCurrentTrack,
     isPlaying,
     setIsPlaying,
+    playTrackRef,
   } = usePlayer();
   const [progress, setProgress] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -128,6 +129,12 @@ export default function Player() {
     }
     updateMediaSession(track, true);
   };
+
+  // Daftarkan fungsi playTrackImmediate ke context ref setiap render supaya selalu fresh
+  // (DownloadedLibrary dan komponen lain bisa pakai ini untuk play tanpa melalui React render cycle)
+  useEffect(() => {
+    playTrackRef.current = playTrackImmediate;
+  });
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVol = parseFloat(e.target.value); // Pake newVol biar konsisten

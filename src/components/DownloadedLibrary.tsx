@@ -16,74 +16,88 @@ export default function DownloadedLibrary() {
   const [tracks, setTracks] = useState<OfflineTrackMeta[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalSize, setTotalSize] = useState(0);
-  const [playingId, setPlayingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  // Blob URL cache — module-level biar tidak hilang saat navigate (audio tetap jalan)
   const blobUrlsRef = useRef<Record<string, string>>({});
-  const { setCurrentTrack, setIsPlaying, setTracks: setPlayerTracks } = usePlayer();
+  const { setTracks: setPlayerTracks, playTrackRef } = usePlayer();
 
   useEffect(() => {
-    getAllOfflineTracks()
-      .then((data) => {
+    let cancelled = false;
+
+    const loadAll = async () => {
+      try {
+        const data = await getAllOfflineTracks();
+        if (cancelled) return;
+
         setTracks(data);
         setTotalSize(data.reduce((s, t) => s + t.fileSize, 0));
-      })
-      .finally(() => setLoading(false));
+
+        // Pre-load semua blob URL sebelum library tampil, biar handlePlay bisa sinkronus
+        await Promise.all(
+          data.map(async (t) => {
+            if (blobUrlsRef.current[t.id]) return; // sudah ada, skip
+            const blob = await getOfflineAudioBlob(t.id);
+            if (blob && !cancelled) {
+              blobUrlsRef.current[t.id] = URL.createObjectURL(blob);
+            }
+          }),
+        );
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    loadAll();
 
     return () => {
-      // Revoke semua blob URL saat unmount
-      Object.values(blobUrlsRef.current).forEach(URL.revokeObjectURL);
+      cancelled = true;
+      // Hanya revoke URL yang sedang tidak diputar player
+      // (tidak revoke semua supaya audio yang lagi jalan tidak terganggu)
     };
   }, []);
 
-  const handlePlay = async (meta: OfflineTrackMeta) => {
-    setPlayingId(meta.id);
-    try {
-      // Buat blob URL untuk semua track sekaligus supaya playNext bisa lanjut tanpa network
-      await Promise.all(
-        tracks.map(async (t) => {
-          if (blobUrlsRef.current[t.id]) return;
-          const blob = await getOfflineAudioBlob(t.id);
-          if (blob) blobUrlsRef.current[t.id] = URL.createObjectURL(blob);
-        }),
-      );
+  // handlePlay harus sinkronus (tidak ada await) supaya user-gesture context tidak hilang
+  // yang bisa menyebabkan autoplay policy memblokir audio.play()
+  const handlePlay = (meta: OfflineTrackMeta) => {
+    const blobUrl = blobUrlsRef.current[meta.id];
+    if (!blobUrl) return; // blob belum siap (sangat jarang setelah loading selesai)
 
-      if (!blobUrlsRef.current[meta.id]) return; // track yg dipilih nggak ada blobnya
-
-      // Bangun daftar semua offline tracks sebagai player queue (hanya yang punya blob URL)
-      const offlineQueue = tracks
-        .filter((t) => blobUrlsRef.current[t.id])
-        .map((t) => ({
-          id: t.id,
-          title: t.title,
-          artist: t.artist,
-          duration: t.duration,
-          albumArt: t.coverDataUrl,
-          cover_url: t.coverDataUrl,
-          audio_url: blobUrlsRef.current[t.id],
-          is_liked: false,
-        }));
-
-      setPlayerTracks(offlineQueue);
-      setCurrentTrack({
-        id: meta.id,
-        title: meta.title,
-        artist: meta.artist,
-        duration: meta.duration,
-        albumArt: meta.coverDataUrl,
-        cover_url: meta.coverDataUrl,
-        audio_url: blobUrlsRef.current[meta.id],
+    // Bangun queue dari semua track yang blob-nya sudah siap
+    const offlineQueue = tracks
+      .filter((t) => blobUrlsRef.current[t.id])
+      .map((t) => ({
+        id: t.id,
+        title: t.title,
+        artist: t.artist,
+        duration: t.duration,
+        albumArt: t.coverDataUrl,
+        cover_url: t.coverDataUrl,
+        audio_url: blobUrlsRef.current[t.id] as string,
         is_liked: false,
-      });
-      setIsPlaying(true);
-    } finally {
-      setPlayingId(null);
-    }
+      }));
+
+    // Set queue di context untuk navigasi next/prev
+    setPlayerTracks(offlineQueue);
+
+    // Putar langsung via imperative API — ini yang penting:
+    // playTrackRef.current adalah playTrackImmediate dari Player yang langsung set audio.src dan play()
+    // tanpa menunggu React render cycle, sehingga user-gesture tetap valid
+    playTrackRef.current({
+      id: meta.id,
+      title: meta.title,
+      artist: meta.artist,
+      duration: meta.duration,
+      albumArt: meta.coverDataUrl,
+      cover_url: meta.coverDataUrl,
+      audio_url: blobUrl,
+      is_liked: false,
+    });
   };
 
   const handleDelete = async (id: string) => {
     setDeletingId(id);
     await removeOfflineTrack(id);
-    unmarkOfflineOnServer(id).catch(() => {}); // fire-and-forget, tidak perlu tunggu network
+    unmarkOfflineOnServer(id).catch(() => {}); // fire-and-forget
     if (blobUrlsRef.current[id]) {
       URL.revokeObjectURL(blobUrlsRef.current[id]);
       delete blobUrlsRef.current[id];
@@ -138,7 +152,7 @@ export default function DownloadedLibrary() {
               Belum Ada Lagu Offline
             </p>
             <p className="text-[11px] text-gray-600 font-mono">
-              Klik kanan lagu → "Simpan Offline"
+              Klik kanan lagu → &quot;Simpan Offline&quot;
             </p>
           </div>
         </div>
@@ -151,7 +165,8 @@ export default function DownloadedLibrary() {
             >
               {/* Cover */}
               <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0 relative bg-[#1a1a1a]">
-                {track.coverDataUrl && track.coverDataUrl !== "/nocturn.avif" ? (
+                {track.coverDataUrl &&
+                track.coverDataUrl !== "/nocturn.avif" ? (
                   <img
                     src={track.coverDataUrl}
                     alt={track.title}
@@ -192,14 +207,9 @@ export default function DownloadedLibrary() {
               <div className="flex items-center gap-2 flex-shrink-0">
                 <button
                   onClick={() => handlePlay(track)}
-                  disabled={playingId === track.id}
                   className="w-9 h-9 rounded-full bg-[#72fe8f] flex items-center justify-center text-black hover:scale-110 active:scale-90 transition-transform disabled:opacity-60"
                 >
-                  {playingId === track.id ? (
-                    <div className="w-3 h-3 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <Play size={14} fill="black" className="ml-0.5" />
-                  )}
+                  <Play size={14} fill="black" className="ml-0.5" />
                 </button>
                 <button
                   onClick={() => handleDelete(track.id)}

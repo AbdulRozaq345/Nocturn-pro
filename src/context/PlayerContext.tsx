@@ -4,9 +4,11 @@ import {
   createContext,
   useContext,
   useState,
+  useRef,
   ReactNode,
   Dispatch,
   SetStateAction,
+  MutableRefObject,
 } from "react";
 
 interface PlayerContextType {
@@ -21,6 +23,8 @@ interface PlayerContextType {
   isPlaying: boolean;
   setIsPlaying: Dispatch<SetStateAction<boolean>>;
   togglePlay: () => void;
+  /** Ref ke fungsi playTrackImmediate di Player — gunakan untuk play tanpa melalui React render cycle */
+  playTrackRef: MutableRefObject<(track: any) => void>;
 }
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
@@ -31,6 +35,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [shuffleQueue, setShuffleQueue] = useState<any[]>([]);
   const [currentTrack, setCurrentTrack] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  // Diisi oleh Player component dengan fungsi playTrackImmediate-nya
+  const playTrackRef = useRef<(track: any) => void>(() => {});
 
   const togglePlay = () => {
     setIsPlaying((prev) => !prev);
@@ -50,6 +56,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         isPlaying,
         setIsPlaying,
         togglePlay,
+        playTrackRef,
       }}
     >
       {children}
