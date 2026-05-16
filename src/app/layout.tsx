@@ -4,13 +4,12 @@ import "./globals.css";
 import { MenuProvider } from "@/context/MenuContext";
 import LoginModal from "@/components/LoginModal";
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { PlayerProvider } from "@/context/PlayerContext";
 import { AudioAnalyserProvider } from "@/context/AudioAnalyserContext";
 import Sidebar from "@/components/sidebar";
 import Topbar from "@/components/topbar";
 import Player from "@/components/player";
-import MaintenanceAlert from "@/components/alert";
 import OfflineSyncProvider from "@/components/OfflineSyncProvider";
 
 export default function RootLayout({
@@ -23,11 +22,35 @@ export default function RootLayout({
     return !!localStorage.getItem("token");
   });
   const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
     const token = localStorage.getItem("token");
     setIsLoggedIn(!!token);
   }, [pathname]);
+
+  // Auto-redirect ke halaman offline ketika tidak ada koneksi internet
+  useEffect(() => {
+    const offlinePages = ["/downloaded", "/_offline"];
+
+    const goOffline = () => {
+      const currentPath = window.location.pathname;
+      if (!offlinePages.includes(currentPath)) {
+        router.replace("/downloaded");
+      }
+    };
+
+    window.addEventListener("offline", goOffline);
+
+    // Cek saat pertama kali app dibuka
+    if (!navigator.onLine) {
+      goOffline();
+    }
+
+    return () => {
+      window.removeEventListener("offline", goOffline);
+    };
+  }, [router]);
 
   const isCallbackPage = pathname === "/auth/callback";
 

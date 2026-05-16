@@ -49,17 +49,19 @@ export default function DownloadedLibrary() {
 
       if (!blobUrlsRef.current[meta.id]) return; // track yg dipilih nggak ada blobnya
 
-      // Bangun daftar semua offline tracks sebagai player queue (semua sudah punya blob URL)
-      const offlineQueue = tracks.map((t) => ({
-        id: t.id,
-        title: t.title,
-        artist: t.artist,
-        duration: t.duration,
-        albumArt: t.coverDataUrl,
-        cover_url: t.coverDataUrl,
-        audio_url: blobUrlsRef.current[t.id] || "",
-        is_liked: false,
-      }));
+      // Bangun daftar semua offline tracks sebagai player queue (hanya yang punya blob URL)
+      const offlineQueue = tracks
+        .filter((t) => blobUrlsRef.current[t.id])
+        .map((t) => ({
+          id: t.id,
+          title: t.title,
+          artist: t.artist,
+          duration: t.duration,
+          albumArt: t.coverDataUrl,
+          cover_url: t.coverDataUrl,
+          audio_url: blobUrlsRef.current[t.id],
+          is_liked: false,
+        }));
 
       setPlayerTracks(offlineQueue);
       setCurrentTrack({
