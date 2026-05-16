@@ -60,6 +60,9 @@ export default function RootLayout({
 <head>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
 <link rel="manifest" href="/manifest.json" />
+{/* Preconnect ke audio server — bikin DNS+TCP+TLS sudah siap sebelum lagu pertama di-load */}
+<link rel="preconnect" href="https://panel.nexxacodeid.site" crossOrigin="anonymous" />
+<link rel="dns-prefetch" href="https://panel.nexxacodeid.site" />
 <meta name="theme-color" content="#72fe8f" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />

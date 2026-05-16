@@ -50,6 +50,8 @@ export default function Player() {
   } = usePlayer();
   const [progress, setProgress] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Hidden prefetcher — warm up HTTP cache untuk lagu berikutnya
+  const prefetchAudioRef = useRef<HTMLAudioElement | null>(null);
   const isInitialMount = useRef(true);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
@@ -361,6 +363,36 @@ export default function Player() {
     }
   };
 
+  // ── Prefetch lagu berikutnya supaya klik Next/auto-next instant ────────────
+  // Prioritas: queue user-added → shuffle queue (kalau shuffle on) → track berikutnya di tracks
+  const nextPrefetchUrl = useMemo(() => {
+    if (queue.length > 0) return queue[0]?.audio_url ?? null;
+    if (isShuffle && shuffleQueue.length > 0)
+      return shuffleQueue[0]?.audio_url ?? null;
+    if (!currentTrack || tracks.length === 0) return null;
+    const idx = tracks.findIndex(
+      (t) => getTrackKey(t) === getTrackKey(currentTrack),
+    );
+    if (idx < 0) return null;
+    const nextIdx = (idx + 1) % tracks.length;
+    return tracks[nextIdx]?.audio_url ?? null;
+  }, [queue, shuffleQueue, isShuffle, currentTrack, tracks]);
+
+  // Pre-load track berikutnya saat lagu sekarang sudah ≥30% diputar
+  // (hindari prefetch terlalu dini biar tidak boros bandwidth kalau user skip cepat)
+  useEffect(() => {
+    if (!nextPrefetchUrl || !prefetchAudioRef.current) return;
+    if (nextPrefetchUrl.startsWith("blob:")) return; // sudah offline, no need
+    const ratio = duration > 0 ? currentTime / duration : 0;
+    if (ratio < 0.3) return;
+    if (prefetchAudioRef.current.src === nextPrefetchUrl) return;
+    prefetchAudioRef.current.src = nextPrefetchUrl;
+    // .load() memicu browser mulai fetch + cache di HTTP cache
+    try {
+      prefetchAudioRef.current.load();
+    } catch {}
+  }, [nextPrefetchUrl, currentTime, duration]);
+
   // ── Upcoming tracks untuk queue display di overlay ─────────────────────────
   const upcomingTracks = useMemo(() => {
     const fromQueue = queue.slice(0, 5);
@@ -627,6 +659,15 @@ export default function Player() {
           onEnded={handleEnded}
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
+        />
+        {/* Hidden prefetcher — warm HTTP cache untuk lagu berikutnya */}
+        <audio
+          ref={prefetchAudioRef}
+          crossOrigin="anonymous"
+          preload="auto"
+          muted
+          style={{ display: "none" }}
+          aria-hidden="true"
         />
 
         {/* ========== MOBILE LAYOUT ========== */}

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { usePlayer } from "@/context/PlayerContext";
 import { useGlobalMenu } from "@/context/MenuContext";
 import { applyPersistedLikeState, buildCoverUrl } from "@/lib/utils";
+import { readTracksCache, writeTracksCache } from "@/lib/tracksCache";
 
 const formatDuration = (seconds: number) => {
   if (!seconds) return "00:00";
@@ -24,6 +25,12 @@ export default function MusikPage() {
 
   useEffect(() => {
     let cancelled = false;
+
+    // Hydrate dari cache — daftar lagu tampil INSTAN
+    const cached = readTracksCache();
+    if (cached && cached.length > 0) {
+      setSongs((prev) => (prev.length > 0 ? prev : cached));
+    }
 
     const fetchSongs = async () => {
       if (typeof document !== "undefined" && document.hidden) return;
@@ -61,6 +68,7 @@ export default function MusikPage() {
           }
           return formattedTracks;
         });
+        if (formattedTracks.length > 0) writeTracksCache(formattedTracks);
       } catch (err) {
         if (!cancelled) console.error(err);
       }

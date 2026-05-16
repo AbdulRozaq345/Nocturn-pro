@@ -14,6 +14,7 @@ import { usePlayer } from "@/context/PlayerContext";
 import { useGlobalMenu } from "@/context/MenuContext";
 import { applyPersistedLikeState, buildCoverUrl } from "@/lib/utils";
 import { sortByVibe, getPlayStats } from "@/lib/playStats";
+import { readTracksCache, writeTracksCache } from "@/lib/tracksCache";
 
 import Link from "next/link";
 
@@ -122,7 +123,11 @@ export default function SearchPage() {
   };
 
   useEffect(() => {
-    // Ambil data lagu dari database (API)
+    // Hydrate dari cache supaya pencarian langsung bisa dipakai
+    const cached = readTracksCache();
+    if (cached && cached.length > 0) setDatabaseSongs(cached);
+
+    // Lalu refresh di background
     import("@/lib/axios").then((module) => {
       const api = module.default;
       api
@@ -152,6 +157,7 @@ export default function SearchPage() {
               }))
               .map(applyPersistedLikeState);
             setDatabaseSongs(formattedTracks);
+            if (formattedTracks.length > 0) writeTracksCache(formattedTracks);
           }
         })
         .catch((err) => console.log("Gagal mengambil data lagu", err));

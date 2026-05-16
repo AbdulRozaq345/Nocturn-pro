@@ -8,6 +8,7 @@ import { usePlayer } from "@/context/PlayerContext";
 import Link from "next/link";
 import { useGlobalMenu } from "@/context/MenuContext";
 import { applyPersistedLikeState, buildCoverUrl } from "@/lib/utils";
+import { readTracksCache, writeTracksCache } from "@/lib/tracksCache";
 
 export default function NocturnPage() {
   const { showMenu } = useGlobalMenu();
@@ -49,6 +50,13 @@ export default function NocturnPage() {
     let cancelled = false;
     const API_BASE = api.defaults.baseURL || "https://panel.nexxacodeid.site";
 
+    // ── Hydrate dari cache dulu — list lagu muncul INSTAN ──────────────────
+    const cached = readTracksCache();
+    if (cached && cached.length > 0) {
+      setTracks((prev) => (prev.length > 0 ? prev : cached));
+      if (!currentTrackRef.current) setCurrentTrack(cached[0]);
+    }
+
     const fetchTracks = async () => {
       if (typeof document !== "undefined" && document.hidden) return;
       try {
@@ -89,6 +97,8 @@ export default function NocturnPage() {
           }
           return data;
         });
+        // Persist ke cache supaya kunjungan berikutnya bisa instant
+        if (data.length > 0) writeTracksCache(data);
         // Cek dulu apakah belum ada track yang diputar, biar pas balik home nggak ke-reset
         if (data.length > 0 && !currentTrackRef.current) {
           setCurrentTrack(data[0]);
