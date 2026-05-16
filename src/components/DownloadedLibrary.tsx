@@ -1,15 +1,20 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { Play, Trash2, WifiOff, HardDrive, Music } from "lucide-react";
 import {
   getAllOfflineTracks,
-  getOfflineAudioBlob,
   removeOfflineTrack,
   formatBytes,
   type OfflineTrackMeta,
 } from "@/lib/offlineStorage";
 import { unmarkOfflineOnServer } from "@/lib/offlineSync";
+import {
+  preloadOfflineCache,
+  getCachedBlobUrl,
+  removeCachedBlobUrl,
+  subscribeOfflineCache,
+} from "@/lib/offlineCache";
 import { usePlayer } from "@/context/PlayerContext";
 
 export default function DownloadedLibrary() {
@@ -17,8 +22,6 @@ export default function DownloadedLibrary() {
   const [loading, setLoading] = useState(true);
   const [totalSize, setTotalSize] = useState(0);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  // Blob URL cache — module-level biar tidak hilang saat navigate (audio tetap jalan)
-  const blobUrlsRef = useRef<Record<string, string>>({});
   const { setTracks: setPlayerTracks, playTrackRef } = usePlayer();
 
   useEffect(() => {
@@ -26,22 +29,13 @@ export default function DownloadedLibrary() {
 
     const loadAll = async () => {
       try {
+        // Gunakan shared cache supaya blob URL tidak duplikat di-create
+        await preloadOfflineCache();
         const data = await getAllOfflineTracks();
         if (cancelled) return;
 
         setTracks(data);
         setTotalSize(data.reduce((s, t) => s + t.fileSize, 0));
-
-        // Pre-load semua blob URL sebelum library tampil, biar handlePlay bisa sinkronus
-        await Promise.all(
-          data.map(async (t) => {
-            if (blobUrlsRef.current[t.id]) return; // sudah ada, skip
-            const blob = await getOfflineAudioBlob(t.id);
-            if (blob && !cancelled) {
-              blobUrlsRef.current[t.id] = URL.createObjectURL(blob);
-            }
-          }),
-        );
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -49,39 +43,44 @@ export default function DownloadedLibrary() {
 
     loadAll();
 
+    // Re-render saat cache berubah (track baru di-save / dihapus dari tempat lain)
+    const unsubscribe = subscribeOfflineCache(() => {
+      if (!cancelled) loadAll();
+    });
+
     return () => {
       cancelled = true;
-      // Hanya revoke URL yang sedang tidak diputar player
-      // (tidak revoke semua supaya audio yang lagi jalan tidak terganggu)
+      unsubscribe();
     };
   }, []);
 
   // handlePlay harus sinkronus (tidak ada await) supaya user-gesture context tidak hilang
   // yang bisa menyebabkan autoplay policy memblokir audio.play()
   const handlePlay = (meta: OfflineTrackMeta) => {
-    const blobUrl = blobUrlsRef.current[meta.id];
+    const blobUrl = getCachedBlobUrl(meta.id);
     if (!blobUrl) return; // blob belum siap (sangat jarang setelah loading selesai)
 
     // Bangun queue dari semua track yang blob-nya sudah siap
     const offlineQueue = tracks
-      .filter((t) => blobUrlsRef.current[t.id])
-      .map((t) => ({
-        id: t.id,
-        title: t.title,
-        artist: t.artist,
-        duration: t.duration,
-        albumArt: t.coverDataUrl,
-        cover_url: t.coverDataUrl,
-        audio_url: blobUrlsRef.current[t.id] as string,
-        is_liked: false,
-      }));
+      .map((t) => {
+        const url = getCachedBlobUrl(t.id);
+        if (!url) return null;
+        return {
+          id: t.id,
+          title: t.title,
+          artist: t.artist,
+          duration: t.duration,
+          albumArt: t.coverDataUrl,
+          cover_url: t.coverDataUrl,
+          audio_url: url,
+          is_liked: false,
+          is_offline: true,
+        };
+      })
+      .filter(Boolean);
 
-    // Set queue di context untuk navigasi next/prev
-    setPlayerTracks(offlineQueue);
+    setPlayerTracks(offlineQueue as any[]);
 
-    // Putar langsung via imperative API — ini yang penting:
-    // playTrackRef.current adalah playTrackImmediate dari Player yang langsung set audio.src dan play()
-    // tanpa menunggu React render cycle, sehingga user-gesture tetap valid
     playTrackRef.current({
       id: meta.id,
       title: meta.title,
@@ -91,6 +90,7 @@ export default function DownloadedLibrary() {
       cover_url: meta.coverDataUrl,
       audio_url: blobUrl,
       is_liked: false,
+      is_offline: true,
     });
   };
 
@@ -98,10 +98,7 @@ export default function DownloadedLibrary() {
     setDeletingId(id);
     await removeOfflineTrack(id);
     unmarkOfflineOnServer(id).catch(() => {}); // fire-and-forget
-    if (blobUrlsRef.current[id]) {
-      URL.revokeObjectURL(blobUrlsRef.current[id]);
-      delete blobUrlsRef.current[id];
-    }
+    removeCachedBlobUrl(id);
     setTracks((prev) => {
       const next = prev.filter((t) => t.id !== id);
       setTotalSize(next.reduce((s, t) => s + t.fileSize, 0));

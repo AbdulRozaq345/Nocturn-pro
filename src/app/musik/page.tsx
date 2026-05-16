@@ -19,7 +19,7 @@ const POLL_INTERVAL_MS = 10_000;
 export default function MusikPage() {
   const router = useRouter();
   const [songs, setSongs] = useState<any[]>([]);
-  const { setCurrentTrack, setIsPlaying, setTracks } = usePlayer();
+  const { setTracks, playTrackRef } = usePlayer();
   const { showMenu } = useGlobalMenu();
 
   useEffect(() => {
@@ -82,8 +82,7 @@ export default function MusikPage() {
 
   const handlePlaySong = (song: any) => {
     setTracks(songs);
-    setCurrentTrack(song);
-    setIsPlaying(true);
+    playTrackRef.current(song);
   };
 
   return (

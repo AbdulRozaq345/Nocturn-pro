@@ -48,7 +48,7 @@ export default function SearchPage() {
   });
   const [showAllHistory, setShowAllHistory] = useState(false);
 
-  const { setCurrentTrack, setIsPlaying, setTracks, currentTrack } = usePlayer();
+  const { setTracks, currentTrack, playTrackRef } = usePlayer();
   const { showMenu } = useGlobalMenu();
 
   const getHistoryStorageKey = () => {
@@ -277,12 +277,8 @@ export default function SearchPage() {
         addToHistory(query);
       }
 
-      // Set antrean lagu ke context player agar bisa 'next/previous'
       setTracks(list);
-      // Set lagu yang sekarang dimainkan
-      setCurrentTrack(song);
-      // Paksa mainkan
-      setIsPlaying(true);
+      playTrackRef.current(song);
     };
 
     return (

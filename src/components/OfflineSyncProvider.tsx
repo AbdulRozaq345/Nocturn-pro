@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { WifiOff, Wifi } from "lucide-react";
 import { syncOfflineFromServer, pushLocalToServer } from "@/lib/offlineSync";
 import type { SyncProgress } from "@/lib/offlineSync";
+import { preloadOfflineCache, refreshOfflineCache } from "@/lib/offlineCache";
 
 export default function OfflineSyncProvider() {
   const [progress, setProgress] = useState<SyncProgress | null>(null);
@@ -14,6 +15,10 @@ export default function OfflineSyncProvider() {
   const [showOnlineBanner, setShowOnlineBanner] = useState(false);
 
   useEffect(() => {
+    // Preload blob URL cache di startup — biar offline playback langsung ready
+    // Dilakukan sebelum auth check supaya offline mode bisa langsung dengar tanpa login
+    preloadOfflineCache();
+
     const token = localStorage.getItem("token");
     if (!token) return;
 
@@ -25,6 +30,8 @@ export default function OfflineSyncProvider() {
       await syncOfflineFromServer((p) => {
         if (!cancelled) setProgress(p);
       }).catch(() => {});
+      // Refresh cache setelah sync — track baru yang baru di-download masuk cache
+      await refreshOfflineCache().catch(() => {});
       if (!cancelled) setProgress(null);
     };
 

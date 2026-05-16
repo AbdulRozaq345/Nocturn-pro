@@ -1,7 +1,9 @@
 "use client";
 
-import { Play, Clock } from "lucide-react";
+import { Play, Clock, WifiOff } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useGlobalMenu } from "@/context/MenuContext";
+import { hasOfflineCached, subscribeOfflineCache } from "@/lib/offlineCache";
 
 export default function TrackList({
   tracks,
@@ -11,6 +13,9 @@ export default function TrackList({
   onPlay: (track: any) => void;
 }) {
   const { showMenu } = useGlobalMenu();
+  // Force re-render saat ada track yang di-save/dihapus dari cache offline
+  const [, setTick] = useState(0);
+  useEffect(() => subscribeOfflineCache(() => setTick((n) => n + 1)), []);
 
   return (
     // Padding dikecilin buat mobile biar gak terlalu boros ruang
@@ -63,9 +68,17 @@ export default function TrackList({
 
                 {/* Info Teks - truncate wajib di sini */}
                 <div className="flex flex-col truncate">
-                  <span className="text-white text-xs md:text-sm font-bold tracking-tight truncate group-hover:text-[#72fe8f] transition-colors uppercase">
-                    {track.title}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-white text-xs md:text-sm font-bold tracking-tight truncate group-hover:text-[#72fe8f] transition-colors uppercase">
+                      {track.title}
+                    </span>
+                    {hasOfflineCached(track.id) && (
+                      <WifiOff
+                        size={10}
+                        className="text-[#72fe8f] flex-shrink-0"
+                      />
+                    )}
+                  </div>
                   <span className="text-[0.55rem] md:text-[0.6rem] text-gray-500 font-mono uppercase tracking-tighter truncate">
                     {track.artist}
                   </span>

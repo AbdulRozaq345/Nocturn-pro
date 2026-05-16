@@ -19,7 +19,17 @@ import { usePlayer } from "@/context/PlayerContext";
 import { useGlobalMenu } from "@/context/MenuContext";
 import { useAudioAnalyser } from "@/context/AudioAnalyserContext";
 import api from "@/lib/axios";
-import { recordPlay, getPlayStats, generateShuffleQueue } from "@/lib/playStats";
+import {
+  recordPlay,
+  recordPlaybackResult,
+  getPlayStats,
+  generateShuffleQueue,
+} from "@/lib/playStats";
+import {
+  resolveAudioUrl,
+  resolveCoverUrl,
+  hasOfflineCached,
+} from "@/lib/offlineCache";
 import { setPersistedLikedTrackId } from "@/lib/utils";
 import CurvedLoop from "./CurvedLoop";
 import MobileOverlay from "./MobileOverlay";
@@ -57,14 +67,21 @@ export default function Player() {
   // Refs so Media Session handlers always call the latest version of these functions
   const playNextRef = useRef<() => void>(() => {});
   const playPreviousRef = useRef<() => void>(() => {});
+  // Flag to skip the isPlaying/track useEffect when playTrackImmediate already called play()
+  const skipPlayEffectRef = useRef(false);
 
   const toggleShuffle = () => {
     setIsShuffle((prev) => {
       const next = !prev;
       if (next) {
-        // Generate urutan shuffle dari semua tracks sekarang
+        // Shuffle pintar: dipengaruhi vibe currentTrack + affinity user
         setShuffleQueue(
-          generateShuffleQueue(tracks, currentTrack?.id ?? null, getPlayStats()),
+          generateShuffleQueue(
+            tracks,
+            currentTrack?.id ?? null,
+            getPlayStats(),
+            currentTrack,
+          ),
         );
       } else {
         setShuffleQueue([]);
@@ -81,7 +98,12 @@ export default function Player() {
       prevTracksIdRef.current = id;
       if (isShuffle) {
         setShuffleQueue(
-          generateShuffleQueue(tracks, currentTrack?.id ?? null, getPlayStats()),
+          generateShuffleQueue(
+            tracks,
+            currentTrack?.id ?? null,
+            getPlayStats(),
+            currentTrack,
+          ),
         );
       }
     }
@@ -115,19 +137,40 @@ export default function Player() {
   // Putar track tertentu secara imperative — bypass React render cycle biar instant
   const playTrackImmediate = (track: any) => {
     if (!track) return;
-    recordPlay(track.id);
-    setCurrentTrack(track);
+
+    // Catat hasil playback lagu sebelumnya untuk smart shuffle (skip vs complete)
+    const audio = audioRef.current;
+    if (audio && currentTrack?.id && audio.duration > 0) {
+      const ratio = audio.currentTime / audio.duration;
+      recordPlaybackResult(currentTrack.id, ratio);
+    }
+
+    // Auto-resolve ke offline blob URL kalau tersedia (untuk dengar offline)
+    const resolvedAudioUrl = resolveAudioUrl(track);
+    const resolvedCover = resolveCoverUrl(track);
+    const enrichedTrack = {
+      ...track,
+      audio_url: resolvedAudioUrl || track.audio_url,
+      cover_url: resolvedCover || track.cover_url,
+      albumArt: resolvedCover || track.albumArt,
+      is_offline: hasOfflineCached(track.id),
+    };
+
+    recordPlay(enrichedTrack.id);
+    skipPlayEffectRef.current = true; // cegah useEffect double-play setelah re-render
+    setCurrentTrack(enrichedTrack);
     setIsPlaying(true);
 
-    const audio = audioRef.current;
-    if (audio && track.audio_url) {
-      if (audio.src !== track.audio_url) {
-        audio.src = track.audio_url;
+    if (audio && enrichedTrack.audio_url) {
+      if (audio.src !== enrichedTrack.audio_url) {
+        audio.src = enrichedTrack.audio_url;
       }
       resumeContext();
-      audio.play().catch(() => {});
+      audio.play().catch((err) => {
+        if (err.name !== "AbortError") console.warn("Play failed:", err);
+      });
     }
-    updateMediaSession(track, true);
+    updateMediaSession(enrichedTrack, true);
   };
 
   // Daftarkan fungsi playTrackImmediate ke context ref setiap render supaya selalu fresh
@@ -186,10 +229,16 @@ export default function Player() {
       currentIndexByKey >= 0 ? currentIndexByKey : currentIndexById;
 
     if (isShuffle) {
-      // Ambil dari depan shuffle queue; kalau habis → mulai siklus baru
-      const sq = shuffleQueue.length > 0
-        ? shuffleQueue
-        : generateShuffleQueue(tracks, currentTrack?.id ?? null, getPlayStats());
+      // Ambil dari depan shuffle queue; kalau habis → regenerate dengan referensi terbaru
+      const sq =
+        shuffleQueue.length > 0
+          ? shuffleQueue
+          : generateShuffleQueue(
+              tracks,
+              currentTrack?.id ?? null,
+              getPlayStats(),
+              currentTrack,
+            );
       const [next, ...rest] = sq;
       setShuffleQueue(rest);
       playTrackImmediate(next);
@@ -415,7 +464,12 @@ export default function Player() {
   }, [attachAudioElement]);
 
   useEffect(() => {
-    // Memastikan pemutar audio (HTMLAudioElement) sinkron dengan state isPlaying di Context
+    // Sinkronisasi HTMLAudioElement dengan state isPlaying.
+    // Skip jika playTrackImmediate sudah memanggil play() langsung (cegah double-play).
+    if (skipPlayEffectRef.current) {
+      skipPlayEffectRef.current = false;
+      return;
+    }
     if (audioRef.current && currentTrack?.audio_url) {
       if (isPlaying) {
         safelyPlayAudio();

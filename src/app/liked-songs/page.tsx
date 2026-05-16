@@ -8,7 +8,7 @@ import { useGlobalMenu } from "@/context/MenuContext";
 import { applyPersistedLikeState, buildCoverUrl } from "@/lib/utils";
 
 export default function LikedSongs() {
-  const { setTracks, setCurrentTrack, setIsPlaying } = usePlayer();
+  const { setTracks, playTrackRef } = usePlayer();
   const { showMenu } = useGlobalMenu();
   const [likedTracks, setLikedTracks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,8 +105,8 @@ export default function LikedSongs() {
   }, []);
 
   const handlePlayTrack = (track: any) => {
-    setCurrentTrack(track);
-    setIsPlaying(true);
+    setTracks(likedTracks);
+    playTrackRef.current(track);
   };
 
   const handleDownloadAll = () => {

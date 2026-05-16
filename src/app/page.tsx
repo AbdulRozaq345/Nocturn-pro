@@ -18,6 +18,7 @@ export default function NocturnPage() {
     setCurrentTrack,
     isPlaying,
     setIsPlaying,
+    playTrackRef,
   } = usePlayer();
 
   const [playlists, setPlaylists] = useState<any[]>([]);
@@ -131,8 +132,7 @@ export default function NocturnPage() {
           <TrackList
             tracks={tracks}
             onPlay={(t) => {
-              setCurrentTrack(t);
-              setIsPlaying(true);
+              playTrackRef.current(t);
             }}
           />
         </div>
@@ -294,8 +294,7 @@ export default function NocturnPage() {
                   <div
                     key={track.id || i}
                     onClick={() => {
-                      setCurrentTrack(track);
-                      setIsPlaying(true);
+                      playTrackRef.current(track);
                     }}
                     className="bg-gradient-to-br from-[#141414]/90 to-[#0f0f0f]/80 p-4 rounded-xl flex items-center gap-4 hover:bg-[#262626] transition-colors cursor-pointer group shadow-[0_4px_24px_-4px_rgba(0,0,0,0.5)] border border-white/5"
                   >

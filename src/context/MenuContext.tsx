@@ -10,8 +10,9 @@ import {
 import api from "@/lib/axios"; // Import instance axios kita yang udah di-set base URL-nya
 import { usePlayer } from "@/context/PlayerContext";
 import { applyPersistedLikeState, setPersistedLikedTrackId, buildCoverUrl } from "@/lib/utils";
-import { saveOfflineTrack, isOfflineAvailable, fetchImageAsDataUrl } from "@/lib/offlineStorage";
+import { saveOfflineTrack, isOfflineAvailable, fetchImageAsDataUrl, type OfflineTrackMeta } from "@/lib/offlineStorage";
 import { markOfflineOnServer, unmarkOfflineOnServer } from "@/lib/offlineSync";
+import { setCachedBlobUrl } from "@/lib/offlineCache";
 
 interface MenuContextType {
   showMenu: (
@@ -274,6 +275,19 @@ export function MenuProvider({ children }: { children: ReactNode }) {
         : await fetchImageAsDataUrl(coverUrl);
 
       await saveOfflineTrack(activeTrack, audioBlob, coverDataUrl);
+      // Populate in-memory cache supaya playback bisa instant pakai blob URL
+      const meta: OfflineTrackMeta = {
+        key: `${activeTrack.id}`,
+        id: String(activeTrack.id),
+        userId: "",
+        title: activeTrack.title || activeTrack.trackTitle || "Unknown",
+        artist: activeTrack.artist || activeTrack.artistName || "Unknown",
+        duration: activeTrack.duration || "00:00",
+        coverDataUrl,
+        fileSize: audioBlob.size,
+        downloadedAt: Date.now(),
+      };
+      setCachedBlobUrl(activeTrack.id, URL.createObjectURL(audioBlob), meta);
       // Tandai di backend agar sync ke device lain
       await markOfflineOnServer(activeTrack.id).catch(() => {});
       showToast(`Tersimpan offline: ${activeTrack.title || "Track"}`);

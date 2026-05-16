@@ -11,7 +11,7 @@ export default function PlaylistPage() {
   const { id } = useParams();
   const [playlist, setPlaylist] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const { setCurrentTrack, setIsPlaying, setTracks } = usePlayer();
+  const { setTracks, playTrackRef } = usePlayer();
   const { showMenu } = useGlobalMenu();
 
   useEffect(() => {
@@ -138,8 +138,7 @@ export default function PlaylistPage() {
           onClick={() => {
             if (playlist.tracks?.length > 0) {
               setTracks(playlist.tracks);
-              setCurrentTrack(playlist.tracks[0]);
-              setIsPlaying(true);
+              playTrackRef.current(playlist.tracks[0]);
             }
           }}
           className="group w-16 h-16 bg-[#72fe8f] rounded-full flex items-center justify-center text-black hover:scale-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(114,254,143,0.3)]"
@@ -158,8 +157,7 @@ export default function PlaylistPage() {
                   key={track.id || i}
                   onClick={() => {
                     setTracks(playlist.tracks);
-                    setCurrentTrack(track);
-                    setIsPlaying(true);
+                    playTrackRef.current(track);
                   }}
                   onContextMenu={(e) => showMenu(e, track, "general")}
                   className="bg-gradient-to-br from-[#141414]/90 to-[#0f0f0f]/80 p-4 rounded-xl flex items-center gap-4 hover:bg-[#262626] transition-colors cursor-pointer group shadow-[0_4px_24px_-4px_rgba(0,0,0,0.5)] border border-white/5"
