@@ -7,7 +7,7 @@ import api from "@/lib/axios";
 import { usePlayer } from "@/context/PlayerContext";
 import Link from "next/link";
 import { useGlobalMenu } from "@/context/MenuContext";
-import { applyPersistedLikeState } from "@/lib/utils";
+import { applyPersistedLikeState, buildCoverUrl } from "@/lib/utils";
 
 export default function NocturnPage() {
   const { showMenu } = useGlobalMenu();
@@ -61,6 +61,8 @@ export default function NocturnPage() {
                 ...track,
                 title: track.trackTitle || "Unknown Title",
                 artist: track.artistName || "Unknown Artist",
+                albumArt: buildCoverUrl(track.playlistCover, API_BASE),
+                cover_url: buildCoverUrl(track.playlistCover, API_BASE),
                 audio_url:
                   track.fileName || track.file_name
                     ? `${API_BASE}/music/${track.fileName || track.file_name}`
