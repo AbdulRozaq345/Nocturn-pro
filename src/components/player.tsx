@@ -325,9 +325,12 @@ export default function Player() {
   };
 
   const handleEnded = () => {
+    // Resume AudioContext dulu — penting di background PWA supaya lagu
+    // berikutnya kedengaran (bukan cuma jalan di metadata)
+    resumeContext();
     if (repeatMode === "one" && audioRef.current) {
       audioRef.current.currentTime = 0;
-      audioRef.current.play();
+      audioRef.current.play().catch(() => {});
     } else {
       playNext();
     }
@@ -495,6 +498,29 @@ export default function Player() {
     if (audioRef.current) attachAudioElement(audioRef.current);
   }, [attachAudioElement]);
 
+  // ── Background-aware playback ─────────────────────────────────────────────
+  // PWA "Home button" → tab hidden → AudioContext bisa suspend.
+  // Karena audio di-route lewat Web Audio (untuk visualizer), suspend = no sound.
+  // Solusi: resume context tiap kali visibility berubah & saat lagu masih
+  // seharusnya jalan tapi audio.paused jadi true (browser auto-pause).
+  useEffect(() => {
+    const onVisibility = () => {
+      resumeContext();
+      // Kalau state isPlaying tapi audio kebetulan ke-pause oleh sistem,
+      // mulai lagi
+      const audio = audioRef.current;
+      if (audio && isPlaying && audio.paused && currentTrack?.audio_url) {
+        audio.play().catch(() => {});
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", onVisibility);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", onVisibility);
+    };
+  }, [isPlaying, currentTrack?.audio_url, resumeContext]);
+
   useEffect(() => {
     // Sinkronisasi HTMLAudioElement dengan state isPlaying.
     // Skip jika playTrackImmediate sudah memanggil play() langsung (cegah double-play).
@@ -657,7 +683,11 @@ export default function Player() {
           onLoadedMetadata={handleLoadedMetadata}
           onCanPlay={handleCanPlay}
           onEnded={handleEnded}
-          onPlay={() => setIsPlaying(true)}
+          onPlay={() => {
+            setIsPlaying(true);
+            // Pastikan AudioContext aktif tiap kali audio mulai (kritis di background PWA)
+            resumeContext();
+          }}
           onPause={() => setIsPlaying(false)}
         />
         {/* Hidden prefetcher — warm HTTP cache untuk lagu berikutnya */}

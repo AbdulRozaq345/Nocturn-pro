@@ -38,6 +38,17 @@ export function AudioAnalyserProvider({ children }: { children: ReactNode }) {
       analyser.connect(ctx.destination);
       audioCtxRef.current = ctx;
       analyserRef.current = analyser;
+
+      // ── Auto-resume saat browser/OS suspend context ─────────────────────
+      // Penting buat PWA: saat user pencet Home, browser bisa suspend
+      // AudioContext. Karena audio kita di-route lewat MediaElementAudioSource,
+      // suspend = no sound (meski <audio> tetap jalan). Auto-resume di sini
+      // memastikan lagu berikutnya tetap kedengaran.
+      ctx.addEventListener?.("statechange", () => {
+        if (ctx.state === "suspended") {
+          ctx.resume().catch(() => {});
+        }
+      });
       return ctx;
     } catch {
       return null;
