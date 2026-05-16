@@ -13,8 +13,8 @@ type MaintenanceStatus = {
 
 const FALLBACK: MaintenanceStatus = {
   active: false,
-  message: "",
-  estimatedTime: "",
+  message: "Server sedang diperbaiki, mohon tunggu",
+  estimatedTime: "5 jam",
   fullscreen: false,
 };
 
@@ -27,7 +27,7 @@ export async function GET() {
     const payload: MaintenanceStatus = {
       active: Boolean(data.active),
       message: data.message ?? FALLBACK.message,
-      estimatedTime: data.estimatedTime ?? "",
+      estimatedTime: data.estimatedTime ?? FALLBACK.estimatedTime,
       fullscreen: Boolean(data.fullscreen),
     };
 

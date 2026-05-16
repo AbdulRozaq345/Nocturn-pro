@@ -11,6 +11,7 @@ import Sidebar from "@/components/sidebar";
 import Topbar from "@/components/topbar";
 import Player from "@/components/player";
 import OfflineSyncProvider from "@/components/OfflineSyncProvider";
+import MaintenanceAlert from "@/components/alert";
 
 export default function RootLayout({
   children,
@@ -74,7 +75,7 @@ export default function RootLayout({
                 <Sidebar />
                 <div className="flex-grow flex flex-col relative overflow-y-auto custom-scrollbar w-full">
                   <Topbar />
-                  {/* <MaintenanceAlert pollIntervalMs={5000} /> */}
+                  <MaintenanceAlert pollIntervalMs={5000} />
                   {children}
                 </div>
               </div>
