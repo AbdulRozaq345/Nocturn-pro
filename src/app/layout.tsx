@@ -10,6 +10,7 @@ import { AudioAnalyserProvider } from "@/context/AudioAnalyserContext";
 import Sidebar from "@/components/sidebar";
 import Topbar from "@/components/topbar";
 import Player from "@/components/player";
+import QueuePanel from "@/components/QueuePanel";
 import OfflineSyncProvider from "@/components/OfflineSyncProvider";
 import MaintenanceAlert from "@/components/alert";
 
@@ -83,6 +84,7 @@ export default function RootLayout({
                 </div>
               </div>
               <Player />
+              <QueuePanel />
               <OfflineSyncProvider />
             </MenuProvider>
           </AudioAnalyserProvider>

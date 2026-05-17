@@ -1,6 +1,8 @@
+"use client";
+
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import {
   Home,
   Library,
@@ -8,27 +10,26 @@ import {
   ListMusic,
   Search,
   LogOut,
-  Plus,
   WifiOff,
+  ChevronRight,
+  Music,
+  Compass,
 } from "lucide-react";
 import api from "@/lib/axios";
 import { logout } from "@/lib/auth-service";
 
 export default function Sidebar() {
   const router = useRouter();
-  const [playlists, setPlaylists] = useState<{ id: number; name: string }[]>(
-    [],
-  );
+  const pathname = usePathname();
+  const [playlists, setPlaylists] = useState<any[]>([]);
   const [user, setUser] = useState<Record<string, any> | null>(null);
-  const [isProfileOpen, setIsProfileOpen] = useState(false); // State baru
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // 1. Ambil data user
     const savedUser = localStorage.getItem("user");
     if (savedUser) setUser(JSON.parse(savedUser));
 
-    // 2. Klik di luar buat nutup dropdown
     const handleClickOutside = (event: MouseEvent) => {
       if (
         profileRef.current &&
@@ -45,14 +46,13 @@ export default function Sidebar() {
   useEffect(() => {
     const fetchSidebarPlaylists = async () => {
       const token = localStorage.getItem("token");
-      if (!token) return; // Skip fetching if not authenticated
+      if (!token) return;
 
       try {
         const res = await api.get("/api/playlists");
         const data = res.data.data || res.data;
         setPlaylists(Array.isArray(data) ? data : []);
       } catch (err: any) {
-        // Jangan log error keras-keras ke console kalau emang belom login (401)
         if (err.response?.status !== 401) {
           console.error("Gagal sinkron playlist sidebar, ju! 🗿");
         }
@@ -60,6 +60,14 @@ export default function Sidebar() {
     };
     fetchSidebarPlaylists();
   }, []);
+
+  const navItems = [
+    { icon: <Home size={18} />, label: "Home", href: "/" },
+    { icon: <Compass size={18} />, label: "Explore", href: "/search" },
+    { icon: <Library size={18} />, label: "Library", href: "/YourLibrary" },
+    { icon: <Heart size={18} />, label: "Liked Songs", href: "/liked-songs" },
+    { icon: <WifiOff size={18} />, label: "Downloaded", href: "/downloaded" },
+  ];
 
   return (
     <>
@@ -96,39 +104,139 @@ export default function Sidebar() {
       </div>
 
       {/* Desktop Sidebar (Hidden on Mobile) */}
-      <aside className="hidden md:flex flex-col h-full pt-8 pb-32 bg-[#0e0e0e] text-gray-500 w-64 flex-shrink-0 z-50 border-r border-white/5 relative">
-        <div className="px-8 mb-10 flex items-center justify-between group/brand relative">
-          <div className="flex flex-col">
-            <h1 className="text-xl font-bold tracking-tighter text-[#72fe8f]">
-              NOCTURN{" "}
-              <span className="text-[0.6rem] font-mono tracking-widest bg-[#72fe8f]/20 px-1 ml-1 align-top text-[#72fe8f]">
-                PRO
-              </span>
-            </h1>
+      <aside className="hidden md:flex flex-col h-full bg-[#0f0f0f] text-gray-400 w-56 flex-shrink-0 z-50 border-r border-white/[0.04]">
+        {/* Logo Section */}
+        <div className="px-4 py-5 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-[#72fe8f] flex items-center justify-center flex-shrink-0">
+            <span className="text-black font-black text-sm">N</span>
           </div>
+          <span className="text-white font-black text-sm tracking-widest flex-1">
+            NOCTURN
+          </span>
+          <span className="text-[0.55rem] font-mono tracking-widest bg-[#72fe8f]/20 text-[#72fe8f] px-1.5 py-0.5 rounded">
+            PRO
+          </span>
+        </div>
 
-          {/* PP GOOGLE SECTION */}
-          {user && (
-            <div className="relative" ref={profileRef}>
-              {/* BUTTON CLICK */}
+        {/* Navigation */}
+        <nav className="px-2 mb-2">
+          {navItems.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg mb-0.5 transition-all text-sm font-medium ${
+                  isActive
+                    ? "bg-white/10 text-white"
+                    : "text-gray-400 hover:bg-white/5 hover:text-white"
+                }`}
+              >
+                <span
+                  className={isActive ? "text-[#72fe8f]" : ""}
+                >
+                  {item.icon}
+                </span>
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Divider */}
+        <div className="mx-4 h-px bg-white/5 my-2" />
+
+        {/* Playlists Section */}
+        <div className="flex-1 overflow-y-auto px-2 pb-2 [&::-webkit-scrollbar]:hidden">
+          <p className="text-[0.6rem] font-bold tracking-[0.18em] text-gray-600 uppercase px-3 mb-2">
+            Playlists
+          </p>
+
+          {/* Liked Songs shortcut */}
+          <Link
+            href="/liked-songs"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg mb-0.5 transition-all text-sm font-medium text-gray-400 hover:bg-white/5 hover:text-white"
+          >
+            <div className="w-8 h-8 rounded-md bg-gradient-to-br from-[#72fe8f] to-[#0fe3ff] flex items-center justify-center flex-shrink-0">
+              <Heart size={14} className="text-black" fill="black" />
+            </div>
+            <div className="flex flex-col overflow-hidden">
+              <span className="text-sm font-medium text-white truncate leading-tight">
+                Liked Songs
+              </span>
+              <span className="text-[0.65rem] text-gray-500 truncate leading-tight">
+                Playlist
+              </span>
+            </div>
+          </Link>
+
+          {/* User playlists */}
+          {playlists.map((p) => (
+            <Link
+              key={p.id}
+              href={`/playlist/${p.id}`}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg mb-0.5 transition-all text-sm font-medium text-gray-400 hover:bg-white/5 hover:text-white"
+            >
+              <div className="w-8 h-8 rounded-md overflow-hidden flex-shrink-0 bg-white/5">
+                {p.cover_url || p.cover ? (
+                  <img
+                    src={p.cover_url || p.cover}
+                    alt={p.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.src = "/nocturn.avif";
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Music size={14} className="text-gray-600" />
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col overflow-hidden">
+                <span className="text-sm font-medium text-white truncate leading-tight">
+                  {p.name}
+                </span>
+                <span className="text-[0.65rem] text-gray-500 truncate leading-tight">
+                  Playlist
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
+
+        {/* User Profile */}
+        <div className="border-t border-white/[0.04] px-2 py-3" ref={profileRef}>
+          {user ? (
+            <div className="relative">
               <button
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
-                className={`w-8 h-8 rounded-full border overflow-hidden transition-all shadow-[0_0_15px_rgba(114,254,143,0.1)] 
-                ${isProfileOpen ? "border-[#72fe8f] scale-110" : "border-white/10 hover:border-[#72fe8f]/50"}`}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition-all"
               >
                 <img
-                  className="text-transparent w-full h-full object-cover bg-white/5 animate-pulse text-[0px]"
                   src={
                     user.avatar ||
                     `https://ui-avatars.com/api/?name=${user.name}&background=191919&color=72fe8f&bold=true`
                   }
                   alt="User"
+                  className="w-8 h-8 rounded-full object-cover flex-shrink-0 bg-white/5"
+                  onError={(e) => {
+                    e.currentTarget.src = "/nocturn.avif";
+                  }}
                 />
+                <div className="flex flex-col flex-1 overflow-hidden text-left">
+                  <span className="text-xs font-semibold text-white truncate leading-tight">
+                    {user.name}
+                  </span>
+                  <span className="text-[0.6rem] text-gray-500 truncate leading-tight font-mono">
+                    {user.email}
+                  </span>
+                </div>
+                <ChevronRight size={14} className="text-gray-600 flex-shrink-0" />
               </button>
 
-              {/* DROPDOWN LOGOUT (Muncul berdasarkan State) */}
               {isProfileOpen && (
-                <div className="absolute right-0 top-full mt-2 w-40 bg-[#121212] border border-white/10 rounded shadow-2xl py-1 z-[998] animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-150">
+                <div className="absolute bottom-full left-0 right-0 mb-1 bg-[#121212] border border-white/10 rounded-lg shadow-2xl py-1 z-[998] animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-150">
                   <div className="px-3 py-2 border-b border-white/5 mb-1">
                     <p className="text-[10px] text-white font-bold truncate uppercase">
                       {user.name}
@@ -137,7 +245,6 @@ export default function Sidebar() {
                       {user.email}
                     </p>
                   </div>
-
                   <button
                     onClick={() => {
                       if (confirm("LOGOUT_SESSION? 🐈‍🤣")) logout();
@@ -149,92 +256,17 @@ export default function Sidebar() {
                 </div>
               )}
             </div>
+          ) : (
+            <div className="flex items-center gap-3 px-3 py-2">
+              <div className="w-8 h-8 rounded-full bg-white/5 animate-pulse flex-shrink-0" />
+              <div className="flex-1 flex flex-col gap-1">
+                <div className="h-2 bg-white/5 rounded animate-pulse w-3/4" />
+                <div className="h-1.5 bg-white/5 rounded animate-pulse w-1/2" />
+              </div>
+            </div>
           )}
         </div>
-
-        <div className="px-6 mb-8">
-          <div
-            className="relative group cursor-pointer"
-            onClick={() => router.push("/search")}
-          >
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4 group-focus-within:text-[#72fe8f]" />
-            <input
-              placeholder="SEARCH"
-              readOnly
-              className="w-full bg-[#191919] border-none text-[0.6rem] pl-10 py-2 rounded-sm focus:ring-1 focus:ring-[#72fe8f]/50 transition-all uppercase tracking-widest cursor-pointer"
-            />
-          </div>
-        </div>
-
-        <nav className="flex-grow">
-          <div className="flex flex-col">
-            <NavItem icon={<Home size={18} />} label="Home" href="/" active />
-            <NavItem
-              icon={<Library size={18} />}
-              label="Your Library"
-              href="/YourLibrary"
-            />
-            <NavItem
-              icon={<Heart size={18} />}
-              label="Liked Songs"
-              href="/liked-songs"
-            />
-            <NavItem
-              icon={<WifiOff size={18} />}
-              label="Downloaded"
-              href="/downloaded"
-            />
-          </div>
-
-          <div className="mt-10 px-8">
-            <h3 className="text-[0.6rem] font-bold text-gray-400 tracking-[0.2em] mb-4 uppercase">
-              My Playlists
-            </h3>
-
-            <div className="flex flex-col gap-1 max-h-[300px] overflow-y-auto no-scrollbar">
-              {playlists.length > 0 ? (
-                playlists.map((p) => (
-                  <a
-                    key={p.id}
-                    href={`/playlist/${p.id}`} // Link dinamis ke ID playlist
-                    className="flex items-center gap-3 text-gray-500 hover:text-[#72fe8f] transition-colors py-2 text-[0.6rem] uppercase tracking-widest"
-                  >
-                    <ListMusic size={14} /> {p.name}
-                  </a>
-                ))
-              ) : (
-                <p className="text-[0.5rem] font-mono text-gray-700 italic">
-                  No Database Entry...
-                </p>
-              )}
-            </div>
-          </div>
-        </nav>
       </aside>
     </>
-  );
-}
-
-function NavItem({
-  icon,
-  label,
-  href = "#",
-  active = false,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  href?: string;
-  active?: boolean;
-}) {
-  return (
-    <Link
-      className={`flex items-center gap-4 px-8 py-3 transition-all duration-200 ${active ? "text-[#72fe8f] border-l-2 border-[#72fe8f] bg-gradient-to-r from-[#72fe8f]/10 to-transparent" : "hover:bg-[#2c2c2c] text-gray-400"}`}
-      href={href}
-    >
-      {icon}
-      <span className="text-[0.6875rem] uppercase font-mono tracking-[0.05em]">
-        {label}
-      </span>
-    </Link>
   );
 }

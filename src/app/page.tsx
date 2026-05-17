@@ -1,7 +1,6 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 
-import Hero from "@/components/hero";
 import TrackList from "@/components/TrackList";
 import api from "@/lib/axios";
 import { usePlayer } from "@/context/PlayerContext";
@@ -9,6 +8,8 @@ import Link from "next/link";
 import { useGlobalMenu } from "@/context/MenuContext";
 import { applyPersistedLikeState, buildCoverUrl } from "@/lib/utils";
 import { readTracksCache, writeTracksCache } from "@/lib/tracksCache";
+import { getRecentlyPlayed } from "@/lib/playStats";
+import { Play, Pause, Music, History } from "lucide-react";
 
 export default function NocturnPage() {
   const { showMenu } = useGlobalMenu();
@@ -23,10 +24,24 @@ export default function NocturnPage() {
   } = usePlayer();
 
   const [playlists, setPlaylists] = useState<any[]>([]);
+  const [recentlyPlayedIds, setRecentlyPlayedIds] = useState<string[]>([]);
   const currentTrackRef = useRef(currentTrack);
   useEffect(() => {
     currentTrackRef.current = currentTrack;
   }, [currentTrack]);
+
+  // Refresh recently played setiap kali currentTrack berubah
+  useEffect(() => {
+    setRecentlyPlayedIds(getRecentlyPlayed());
+  }, [currentTrack?.id]);
+
+  const recentlyPlayedTracks = useMemo(() => {
+    if (!recentlyPlayedIds.length || !tracks.length) return [];
+    return recentlyPlayedIds
+      .map((id) => tracks.find((t) => String(t.id) === String(id)))
+      .filter(Boolean)
+      .slice(0, 10);
+  }, [recentlyPlayedIds, tracks]);
 
   useEffect(() => {
     const fetchSidebarPlaylists = async () => {
@@ -126,19 +141,278 @@ export default function NocturnPage() {
     <div className="w-full">
       <main className="w-full pb-36 md:pb-24">
         {/* ========== DESKTOP UI ========== */}
-
         <div className="hidden md:block">
-          <Hero currentTrack={currentTrack} />
-        </div>
 
-        <div className="hidden md:block px-12 py-8">
-          <h3 className="text-2xl font-bold tracking-tight text-white uppercase italic mb-8">
-            Rekomendasi
-          </h3>
-          {/* Row Album/Rekomendasi bisa lo buat komponen sendiri lagi nanti */}
-        </div>
+          {/* A) FEATURED HERO — compact, cinematic */}
+          <div className="h-[300px] relative overflow-hidden">
+            {currentTrack && (
+              <img
+                src={currentTrack?.albumArt || currentTrack?.cover_url || "/nocturn.avif"}
+                alt=""
+                aria-hidden
+                className="absolute inset-0 w-full h-full object-cover scale-110"
+                style={{ filter: "blur(80px) brightness(0.35) saturate(2)" }}
+                onError={(e) => { e.currentTarget.src = "/nocturn.avif"; }}
+              />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-r from-[#0f0f0f] via-[#0f0f0f]/50 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0f0f0f] via-transparent to-transparent" />
 
-        <div className="hidden md:block">
+            <div className="relative z-10 flex items-end px-8 pb-8 h-full gap-6">
+              <div className="w-40 h-40 rounded-lg shadow-[0_12px_40px_rgba(0,0,0,0.6)] overflow-hidden flex-shrink-0 bg-white/5 group">
+                <img
+                  src={currentTrack?.albumArt || currentTrack?.cover_url || "/nocturn.avif"}
+                  alt={currentTrack?.title || "Cover"}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  onError={(e) => { e.currentTarget.src = "/nocturn.avif"; }}
+                />
+              </div>
+
+              <div className="flex flex-col gap-2 flex-1 min-w-0">
+                <span className="text-[0.6rem] font-mono tracking-[0.25em] text-[#72fe8f] uppercase">
+                  {isPlaying ? "// NOW STREAMING" : "// READY TO PLAY"}
+                </span>
+                <h1 className="text-[2.75rem] font-black uppercase tracking-tight max-w-2xl text-white leading-[0.95] line-clamp-2">
+                  {currentTrack?.title || "Select a Track"}
+                </h1>
+                <p className="text-gray-300 text-sm font-mono uppercase tracking-wider truncate">
+                  {currentTrack?.artist || "Press play to begin"}
+                </p>
+
+                <div className="flex items-center gap-3 mt-3">
+                  <button
+                    onClick={() => setIsPlaying(!isPlaying)}
+                    disabled={!currentTrack}
+                    className="flex items-center gap-2 bg-[#72fe8f] text-black px-7 py-2.5 rounded-full font-bold text-sm shadow-[0_0_20px_rgba(114,254,143,0.35)] hover:bg-[#5de87a] hover:scale-105 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {isPlaying ? <Pause size={16} fill="black" /> : <Play size={16} fill="black" className="ml-0.5" />}
+                    {isPlaying ? "Pause" : "Play"}
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      if (currentTrack) showMenu(e, currentTrack, "general");
+                    }}
+                    disabled={!currentTrack}
+                    className="flex items-center gap-2 border border-white/20 text-white px-5 py-2.5 rounded-full text-sm font-medium hover:bg-white/10 hover:border-white/40 transition-all disabled:opacity-40"
+                  >
+                    + Library
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* B) GENRE / MOOD CHIPS */}
+          <div className="px-8 pt-5 pb-2 flex gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+            {["All", "Energize", "Workout", "Relax", "Focus", "Commute", "Romance", "Sad", "Feel good", "Sleep"].map((chip, i) => (
+              <button
+                key={chip}
+                className={`px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 ${
+                  i === 0
+                    ? "bg-white text-black"
+                    : "bg-white/[0.08] text-white hover:bg-white/[0.14] border border-white/5"
+                }`}
+              >
+                {chip}
+              </button>
+            ))}
+          </div>
+
+          {/* C) QUICK PICKS — 4 columns × 4 rows = 16 tracks (YouTube Music style) */}
+          {tracks.length > 0 && (
+            <div className="px-8 pt-6 pb-2">
+              <div className="flex items-baseline justify-between mb-4">
+                <h2 className="text-2xl font-bold text-white tracking-tight">Quick picks</h2>
+                <button className="text-xs text-gray-400 hover:text-white font-medium uppercase tracking-wider transition-colors">
+                  More →
+                </button>
+              </div>
+              <div className="grid grid-cols-4 gap-x-2 gap-y-1">
+                {tracks.slice(0, 16).map((track) => {
+                  const isActive = currentTrack?.id === track.id;
+                  return (
+                    <button
+                      key={track.id}
+                      onClick={() => playTrackRef.current(track)}
+                      onContextMenu={(e) => showMenu(e, track, "general")}
+                      className="flex items-center gap-3 px-2 py-2 rounded-md hover:bg-white/[0.07] group transition-colors text-left"
+                    >
+                      <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0 relative bg-white/5">
+                        <img
+                          src={track.albumArt || track.cover_url || "/nocturn.avif"}
+                          alt={track.title}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                          onError={(e) => { e.currentTarget.src = "/nocturn.avif"; }}
+                        />
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <Play size={16} className="text-white ml-0.5" fill="white" />
+                        </div>
+                      </div>
+                      <div className="flex flex-col flex-1 overflow-hidden">
+                        <span className={`text-sm font-medium truncate leading-tight ${isActive ? "text-[#72fe8f]" : "text-white"}`}>
+                          {track.title}
+                        </span>
+                        <span className="text-xs text-gray-500 truncate leading-tight mt-0.5">
+                          {track.artist}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* D-pre) LISTEN AGAIN — recently played history */}
+          {recentlyPlayedTracks.length > 0 && (
+            <div className="px-8 pt-6 pb-2">
+              <div className="flex items-baseline justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <History size={18} className="text-[#72fe8f]" />
+                  <h2 className="text-2xl font-bold text-white tracking-tight">Listen again</h2>
+                </div>
+              </div>
+              <div className="flex gap-5 overflow-x-auto pb-3 [&::-webkit-scrollbar]:hidden snap-x">
+                {recentlyPlayedTracks.map((track: any) => (
+                  <button
+                    key={track.id}
+                    onClick={() => playTrackRef.current(track)}
+                    onContextMenu={(e) => showMenu(e, track, "general")}
+                    className="flex flex-col gap-2.5 w-44 flex-shrink-0 snap-start group text-left"
+                  >
+                    <div className="relative aspect-square rounded-lg overflow-hidden bg-[#1a1a1a] shadow-md group-hover:shadow-2xl transition-shadow">
+                      <img
+                        src={track.albumArt || track.cover_url || "/nocturn.avif"}
+                        alt={track.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        loading="lazy"
+                        onError={(e) => { e.currentTarget.src = "/nocturn.avif"; }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <div className="absolute bottom-3 right-3 w-11 h-11 rounded-full bg-[#72fe8f] flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-3 group-hover:translate-y-0 transition-all duration-200 shadow-[0_4px_16px_rgba(0,0,0,0.5)]">
+                        <Play size={16} fill="black" className="text-black ml-0.5" />
+                      </div>
+                    </div>
+                    <div className="flex flex-col px-0.5">
+                      <span className="text-sm font-semibold text-white truncate leading-tight">
+                        {track.title}
+                      </span>
+                      <span className="text-xs text-gray-500 truncate leading-tight mt-1">
+                        {track.artist}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* D) RECOMMENDED FOR YOU — horizontal scroll cards */}
+          {tracks.length > 16 && (
+            <div className="px-8 pt-6 pb-2">
+              <div className="flex items-baseline justify-between mb-4">
+                <h2 className="text-2xl font-bold text-white tracking-tight">Recommended for you</h2>
+                <button className="text-xs text-gray-400 hover:text-white font-medium uppercase tracking-wider transition-colors">
+                  More →
+                </button>
+              </div>
+              <div className="flex gap-5 overflow-x-auto pb-3 [&::-webkit-scrollbar]:hidden snap-x">
+                {tracks.slice(16, 30).map((track) => (
+                  <button
+                    key={track.id}
+                    onClick={() => playTrackRef.current(track)}
+                    onContextMenu={(e) => showMenu(e, track, "general")}
+                    className="flex flex-col gap-2.5 w-44 flex-shrink-0 snap-start group text-left"
+                  >
+                    <div className="relative aspect-square rounded-lg overflow-hidden bg-[#1a1a1a] shadow-md group-hover:shadow-2xl transition-shadow">
+                      <img
+                        src={track.albumArt || track.cover_url || "/nocturn.avif"}
+                        alt={track.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        loading="lazy"
+                        onError={(e) => { e.currentTarget.src = "/nocturn.avif"; }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <div className="absolute bottom-3 right-3 w-11 h-11 rounded-full bg-[#72fe8f] flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-3 group-hover:translate-y-0 transition-all duration-200 shadow-[0_4px_16px_rgba(0,0,0,0.5)]">
+                        <Play size={16} fill="black" className="text-black ml-0.5" />
+                      </div>
+                    </div>
+                    <div className="flex flex-col px-0.5">
+                      <span className="text-sm font-semibold text-white truncate leading-tight">
+                        {track.title}
+                      </span>
+                      <span className="text-xs text-gray-500 truncate leading-tight mt-1">
+                        {track.artist}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* E) YOUR PLAYLISTS — horizontal scroll */}
+          {playlists.length > 0 && (
+            <div className="px-8 pt-6 pb-2">
+              <div className="flex items-baseline justify-between mb-4">
+                <h2 className="text-2xl font-bold text-white tracking-tight">Your playlists</h2>
+                <Link
+                  href="/YourLibrary"
+                  className="text-xs text-gray-400 hover:text-white font-medium uppercase tracking-wider transition-colors"
+                >
+                  More →
+                </Link>
+              </div>
+              <div className="flex gap-5 overflow-x-auto pb-3 [&::-webkit-scrollbar]:hidden snap-x">
+                {playlists.map((pl) => (
+                  <Link
+                    key={pl.id}
+                    href={`/playlist/${pl.id}`}
+                    className="flex flex-col gap-2.5 w-44 flex-shrink-0 snap-start group"
+                  >
+                    <div className="relative aspect-square rounded-lg overflow-hidden bg-[#1a1a1a] shadow-md group-hover:shadow-2xl transition-shadow">
+                      {pl.cover_url || pl.cover ? (
+                        <img
+                          src={pl.cover_url || pl.cover}
+                          alt={pl.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          loading="lazy"
+                          onError={(e) => { e.currentTarget.src = "/nocturn.avif"; }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#1a1a1a] to-[#0d0d0d]">
+                          <Music size={36} className="text-gray-600" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <div className="absolute bottom-3 right-3 w-11 h-11 rounded-full bg-[#72fe8f] flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-3 group-hover:translate-y-0 transition-all duration-200 shadow-[0_4px_16px_rgba(0,0,0,0.5)]">
+                        <Play size={16} fill="black" className="text-black ml-0.5" />
+                      </div>
+                    </div>
+                    <div className="flex flex-col px-0.5">
+                      <span className="text-sm font-semibold text-white truncate leading-tight">
+                        {pl.name}
+                      </span>
+                      <span className="text-xs text-gray-500 truncate leading-tight mt-1">
+                        Playlist
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* F) ALL SONGS HEADER */}
+          <div className="px-12 pt-8 pb-2 flex items-baseline justify-between">
+            <h2 className="text-2xl font-bold text-white tracking-tight">All songs</h2>
+            <span className="text-xs text-gray-500 font-mono uppercase tracking-wider">
+              {tracks.length} tracks
+            </span>
+          </div>
+
+          {/* G) TRACK LIST */}
           <TrackList
             tracks={tracks}
             onPlay={(t) => {

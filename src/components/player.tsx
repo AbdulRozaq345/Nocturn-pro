@@ -13,6 +13,9 @@ import {
   Music,
   MonitorSpeaker,
   Heart,
+  ListMusic,
+  Moon,
+  Check,
 } from "lucide-react";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { usePlayer } from "@/context/PlayerContext";
@@ -47,7 +50,12 @@ export default function Player() {
     isPlaying,
     setIsPlaying,
     playTrackRef,
+    isQueueOpen,
+    setIsQueueOpen,
+    sleepTimerUntil,
+    setSleepTimerUntil,
   } = usePlayer();
+  const [isSleepMenuOpen, setIsSleepMenuOpen] = useState(false);
   const [progress, setProgress] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   // Hidden prefetcher — warm up HTTP cache untuk lagu berikutnya
@@ -662,28 +670,98 @@ export default function Player() {
     });
   }, []);
 
-  // Tambahan untuk mendengarkan spasi agar play/pause otomatis
+  // Keyboard shortcuts ala YouTube Music
   useEffect(() => {
-    const handleSpacebar = (e: KeyboardEvent) => {
-      // Abaikan jika user sedang mengetik di input, textarea, dll
+    const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       if (
         target.tagName === "INPUT" ||
         target.tagName === "TEXTAREA" ||
         target.isContentEditable
-      ) {
+      )
         return;
-      }
 
-      if (e.code === "Space") {
-        e.preventDefault(); // Cegah halaman scroll ke bawah
-        togglePlay();
+      const audio = audioRef.current;
+
+      switch (e.code) {
+        case "Space":
+          e.preventDefault();
+          togglePlay();
+          break;
+        case "KeyL":
+          e.preventDefault();
+          if (currentTrack?.id) handleToggleLike();
+          break;
+        case "KeyM":
+          e.preventDefault();
+          toggleMute();
+          break;
+        case "KeyN":
+          e.preventDefault();
+          playNext();
+          break;
+        case "KeyP":
+          e.preventDefault();
+          playPrevious();
+          break;
+        case "KeyQ":
+          e.preventDefault();
+          setIsQueueOpen((v) => !v);
+          break;
+        case "ArrowRight":
+          if (audio && audio.duration) {
+            e.preventDefault();
+            audio.currentTime = Math.min(audio.duration, audio.currentTime + 5);
+          }
+          break;
+        case "ArrowLeft":
+          if (audio && audio.duration) {
+            e.preventDefault();
+            audio.currentTime = Math.max(0, audio.currentTime - 5);
+          }
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          setVolume((v) => {
+            const nv = Math.min(1, v + 0.05);
+            if (audio) audio.volume = nv;
+            if (nv > 0) setIsMuted(false);
+            return nv;
+          });
+          break;
+        case "ArrowDown":
+          e.preventDefault();
+          setVolume((v) => {
+            const nv = Math.max(0, v - 0.05);
+            if (audio) audio.volume = nv;
+            return nv;
+          });
+          break;
       }
     };
 
-    window.addEventListener("keydown", handleSpacebar);
-    return () => window.removeEventListener("keydown", handleSpacebar);
-  }, [isPlaying]);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isPlaying, currentTrack?.id]);
+
+  // Sleep Timer — auto-pause saat waktunya habis
+  useEffect(() => {
+    if (!sleepTimerUntil) return;
+    const ms = sleepTimerUntil - Date.now();
+    if (ms <= 0) {
+      // Sudah lewat, langsung stop
+      if (audioRef.current) audioRef.current.pause();
+      setIsPlaying(false);
+      setSleepTimerUntil(null);
+      return;
+    }
+    const id = setTimeout(() => {
+      if (audioRef.current) audioRef.current.pause();
+      setIsPlaying(false);
+      setSleepTimerUntil(null);
+    }, ms);
+    return () => clearTimeout(id);
+  }, [sleepTimerUntil]);
 
   return (
     <>
@@ -789,55 +867,76 @@ export default function Player() {
         {/* ========== DESKTOP LAYOUT ========== */}
         <div className="hidden md:flex flex-row items-center px-12 justify-between w-full h-full gap-4">
           {/* Info Bagian Kiri */}
-          <div
-            onClick={() => setIsMaximized(true)}
-            className="flex items-center gap-4 w-1/4 min-w-0 cursor-pointer"
-          >
-            <div className="w-14 h-14 bg-[#121212] rounded-md overflow-hidden border border-white/5 flex-shrink-0 relative group">
-              {currentTrack ? (
-                <>
-                  {/* Blurred cover sebagai background glow */}
-                  <img
-                    aria-hidden
-                    src={currentTrack.albumArt || currentTrack.cover_url || "/nocturn.avif"}
-                    className="absolute inset-0 w-full h-full object-cover scale-110 opacity-60"
-                    style={{ filter: "blur(8px)" }}
-                  />
-                  <img
-                    className="w-full h-full object-cover relative z-10 group-hover:scale-105 transition-transform duration-300 text-[0px]"
-                    src={currentTrack.albumArt || currentTrack.cover_url || "/nocturn.avif"}
-                    alt="Cover"
-                    fetchPriority="high"
-                    onError={(e) => { (e.target as HTMLImageElement).src = "/nocturn.avif"; }}
-                  />
-                </>
-              ) : (
-                <Music size={16} className="text-gray-700 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-              )}
-            </div>
-
-            <div className="flex flex-col truncate flex-1 min-w-0">
-              <div className="h-8 flex items-center overflow-hidden">
-                {currentTrack?.title ? (
-                  <div className="w-full text-sm font-bold text-white uppercase tracking-tighter leading-none">
-                    <CurvedLoop
-                      marqueeText={currentTrack.title}
-                      speed={0.8}
-                      curveAmount={0}
-                      direction="left"
-                      interactive={false}
+          <div className="flex items-center gap-3 w-1/4 min-w-0">
+            <div
+              onClick={() => setIsMaximized(true)}
+              className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
+            >
+              <div className="w-14 h-14 bg-[#121212] rounded-md overflow-hidden border border-white/5 flex-shrink-0 relative group">
+                {currentTrack ? (
+                  <>
+                    {/* Blurred cover sebagai background glow */}
+                    <img
+                      aria-hidden
+                      src={currentTrack.albumArt || currentTrack.cover_url || "/nocturn.avif"}
+                      className="absolute inset-0 w-full h-full object-cover scale-110 opacity-60"
+                      style={{ filter: "blur(8px)" }}
                     />
-                  </div>
+                    <img
+                      className="w-full h-full object-cover relative z-10 group-hover:scale-105 transition-transform duration-300 text-[0px]"
+                      src={currentTrack.albumArt || currentTrack.cover_url || "/nocturn.avif"}
+                      alt="Cover"
+                      fetchPriority="high"
+                      onError={(e) => { (e.target as HTMLImageElement).src = "/nocturn.avif"; }}
+                    />
+                  </>
                 ) : (
-                  <span className="text-xs font-bold text-gray-600 animate-pulse">
-                    IDLE
-                  </span>
+                  <Music size={16} className="text-gray-700 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                 )}
               </div>
-              <span className="text-[10px] text-[#72fe8f] font-mono uppercase truncate opacity-80">
-                {currentTrack?.artist || "STANDBY"}
-              </span>
+
+              <div className="flex flex-col truncate flex-1 min-w-0">
+                <div className="h-8 flex items-center overflow-hidden">
+                  {currentTrack?.title ? (
+                    <div className="w-full text-sm font-bold text-white uppercase tracking-tighter leading-none">
+                      <CurvedLoop
+                        marqueeText={currentTrack.title}
+                        speed={0.8}
+                        curveAmount={0}
+                        direction="left"
+                        interactive={false}
+                      />
+                    </div>
+                  ) : (
+                    <span className="text-xs font-bold text-gray-600 animate-pulse">
+                      IDLE
+                    </span>
+                  )}
+                </div>
+                <span className="text-[10px] text-[#72fe8f] font-mono uppercase truncate opacity-80">
+                  {currentTrack?.artist || "STANDBY"}
+                </span>
+              </div>
             </div>
+
+            {/* Like button — YouTube Music style next to track info */}
+            {currentTrack && (
+              <button
+                onClick={handleToggleLike}
+                className={`flex-shrink-0 p-2 rounded-full transition-all hover:bg-white/5 ${
+                  currentTrack?.is_liked
+                    ? "text-[#72fe8f]"
+                    : "text-gray-500 hover:text-white"
+                }`}
+                title={currentTrack?.is_liked ? "Remove from Liked" : "Like"}
+              >
+                <Heart
+                  size={18}
+                  fill={currentTrack?.is_liked ? "currentColor" : "none"}
+                  strokeWidth={currentTrack?.is_liked ? 0 : 2}
+                />
+              </button>
+            )}
           </div>
 
           {/* Controls Bagian Tengah */}
@@ -916,17 +1015,50 @@ export default function Player() {
           </div>
 
           {/* Volume Bagian Kanan */}
-          <div className="flex items-center justify-end gap-4 w-1/4 text-gray-500 group/volume">
-            {/* Queue badge */}
-            {queue.length > 0 && (
-              <div className="relative flex items-center cursor-default" title={`${queue.length} lagu di queue`}>
-                <MonitorSpeaker size={16} className="text-[#72fe8f]" />
-                <span className="absolute -top-2 -right-2 bg-[#72fe8f] text-black text-[8px] font-black rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5 leading-none">
+          <div className="flex items-center justify-end gap-3 w-1/4 text-gray-500 group/volume">
+            {/* Sleep Timer Button */}
+            <div className="relative">
+              <button
+                onClick={() => setIsSleepMenuOpen(!isSleepMenuOpen)}
+                className={`relative p-1.5 rounded-full hover:bg-white/5 transition-colors ${
+                  sleepTimerUntil ? "text-[#72fe8f]" : "hover:text-white"
+                }`}
+                title={sleepTimerUntil ? "Sleep timer active" : "Sleep timer"}
+              >
+                <Moon size={16} />
+                {sleepTimerUntil && (
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-[#72fe8f] rounded-full shadow-[0_0_6px_#72fe8f]" />
+                )}
+              </button>
+              {isSleepMenuOpen && (
+                <SleepTimerMenu
+                  sleepTimerUntil={sleepTimerUntil}
+                  onSelect={(mins) => {
+                    setSleepTimerUntil(mins ? Date.now() + mins * 60 * 1000 : null);
+                    setIsSleepMenuOpen(false);
+                  }}
+                  onClose={() => setIsSleepMenuOpen(false)}
+                />
+              )}
+            </div>
+
+            {/* Queue toggle */}
+            <button
+              onClick={() => setIsQueueOpen(!isQueueOpen)}
+              className={`relative p-1.5 rounded-full hover:bg-white/5 transition-colors ${
+                isQueueOpen ? "text-[#72fe8f]" : "hover:text-white"
+              }`}
+              title="Queue"
+            >
+              <ListMusic size={16} />
+              {queue.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-[#72fe8f] text-black text-[8px] font-black rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5 leading-none">
                   {queue.length > 99 ? "99+" : queue.length}
                 </span>
-              </div>
-            )}
-            <button onClick={toggleMute} className="hover:text-white">
+              )}
+            </button>
+
+            <button onClick={toggleMute} className="hover:text-white p-1.5 rounded-full hover:bg-white/5 transition-colors">
               {isMuted || volume === 0 ? (
                 <VolumeX size={18} className="text-red-500" />
               ) : (
@@ -980,5 +1112,88 @@ export default function Player() {
         />
       )}
     </>
+  );
+}
+
+// ─── Sleep Timer Menu ──────────────────────────────────────────────────────
+function SleepTimerMenu({
+  sleepTimerUntil,
+  onSelect,
+  onClose,
+}: {
+  sleepTimerUntil: number | null;
+  onSelect: (mins: number | null) => void;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [remaining, setRemaining] = useState<string>("");
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!sleepTimerUntil) {
+      setRemaining("");
+      return;
+    }
+    const update = () => {
+      const ms = sleepTimerUntil - Date.now();
+      if (ms <= 0) {
+        setRemaining("0:00");
+        return;
+      }
+      const m = Math.floor(ms / 60000);
+      const s = Math.floor((ms % 60000) / 1000);
+      setRemaining(`${m}:${s.toString().padStart(2, "0")}`);
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [sleepTimerUntil]);
+
+  const options = [5, 10, 15, 30, 45, 60];
+
+  return (
+    <div
+      ref={ref}
+      className="absolute bottom-full right-0 mb-2 w-56 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl py-2 z-[200] animate-in fade-in zoom-in-95 duration-100"
+    >
+      <div className="px-3 pb-2 border-b border-white/5 mb-1.5">
+        <div className="flex items-center gap-2">
+          <Moon size={13} className="text-[#72fe8f]" />
+          <p className="text-xs font-bold text-white">Sleep Timer</p>
+        </div>
+        {sleepTimerUntil && remaining && (
+          <p className="text-[10px] text-[#72fe8f] font-mono mt-1">
+            Stops in {remaining}
+          </p>
+        )}
+      </div>
+      {options.map((m) => (
+        <button
+          key={m}
+          onClick={() => onSelect(m)}
+          className="w-full flex items-center justify-between px-3 py-2 text-xs text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
+        >
+          <span>{m} minutes</span>
+        </button>
+      ))}
+      {sleepTimerUntil && (
+        <>
+          <div className="mx-3 my-1 h-px bg-white/5" />
+          <button
+            onClick={() => onSelect(null)}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
+          >
+            <Check size={12} /> Turn off timer
+          </button>
+        </>
+      )}
+    </div>
   );
 }
