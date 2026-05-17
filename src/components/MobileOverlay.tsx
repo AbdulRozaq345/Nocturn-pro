@@ -15,8 +15,10 @@ import {
   Heart,
   X,
   Music,
+  Moon,
 } from "lucide-react";
 import { useState } from "react";
+import SleepTimerMenu from "./SleepTimerMenu";
 
 const FullscreenVisualizer = dynamic(
   () => import("@/components/three/FullscreenVisualizer"),
@@ -29,10 +31,13 @@ export default function MobileOverlay({
   isLiked,
   handleToggleLike,
   upcomingTracks = [],
+  sleepTimerUntil,
+  setSleepTimerUntil,
   ...props
 }: any) {
   const [imgError, setImgError] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
+  const [isSleepMenuOpen, setIsSleepMenuOpen] = useState(false);
 
   const coverSrc = !imgError
     ? currentTrack?.albumArt || currentTrack?.cover_url || "/nocturn.avif"
@@ -282,6 +287,36 @@ export default function MobileOverlay({
           <button onClick={handleShare} className="hover:text-white transition-colors">
             <Share2 size={20} />
           </button>
+
+          {/* Sleep Timer */}
+          <div className="relative">
+            <button
+              onClick={() => setIsSleepMenuOpen((v) => !v)}
+              className={`relative transition-colors ${
+                sleepTimerUntil ? "text-[#72fe8f]" : "hover:text-white"
+              }`}
+              aria-label="Sleep timer"
+            >
+              <Moon size={20} />
+              {sleepTimerUntil && (
+                <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-[#72fe8f] rounded-full shadow-[0_0_6px_#72fe8f]" />
+              )}
+            </button>
+            {isSleepMenuOpen && (
+              <SleepTimerMenu
+                sleepTimerUntil={sleepTimerUntil}
+                onSelect={(mins) => {
+                  setSleepTimerUntil?.(
+                    mins ? Date.now() + mins * 60 * 1000 : null,
+                  );
+                  setIsSleepMenuOpen(false);
+                }}
+                onClose={() => setIsSleepMenuOpen(false)}
+                align="left"
+              />
+            )}
+          </div>
+
           <button
             onClick={() => setShowQueue(true)}
             className={`hover:text-white transition-colors relative ${upcomingTracks.length > 0 ? "text-[#72fe8f]" : ""}`}
