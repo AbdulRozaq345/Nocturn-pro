@@ -1,8 +1,8 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import api from "@/lib/axios";
 import Link from "next/link";
-import { Plus, Heart, LayoutGrid, MoreVertical, Music } from "lucide-react";
+import { Plus, Heart, LayoutGrid, MoreVertical, Music, Pencil, Trash2 } from "lucide-react";
 
 interface Playlist {
   id: number;
@@ -29,6 +29,15 @@ const YourLibrary = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState("");
 
+  // Rename
+  const [renameTarget, setRenameTarget] = useState<Playlist | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [renameLoading, setRenameLoading] = useState(false);
+
+  // Per-playlist dropdown
+  const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
   const fetchPlaylists = async () => {
     try {
       const res = await api.get("/api/playlists");
@@ -54,6 +63,18 @@ const YourLibrary = () => {
     fetchPlaylists();
   }, []);
 
+  // Tutup dropdown kalau klik di luar
+  useEffect(() => {
+    if (menuOpenId === null) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpenId(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [menuOpenId]);
+
   const handleCreatePlaylist = async () => {
     if (!newPlaylistName.trim()) return;
     try {
@@ -61,6 +82,36 @@ const YourLibrary = () => {
       setIsModalOpen(false);
       setNewPlaylistName("");
       fetchPlaylists();
+    } catch (err: any) {
+      console.error(err);
+    }
+  };
+
+  const handleRename = async () => {
+    if (!renameTarget || !renameValue.trim()) return;
+    setRenameLoading(true);
+    try {
+      await api.patch(`/api/playlists/${renameTarget.id}`, { name: renameValue.trim() });
+      setRenameTarget(null);
+      fetchPlaylists();
+    } catch (err: any) {
+      console.error(err);
+    } finally {
+      setRenameLoading(false);
+    }
+  };
+
+  const handleDelete = async (pl: Playlist) => {
+    if (!confirm(`Hapus playlist "${pl.name}"? Lagu di dalamnya tidak ikut terhapus.`)) return;
+    try {
+      await api.delete(`/api/playlists/${pl.id}`);
+      setPlaylists((prev) => prev.filter((p) => p.id !== pl.id));
+      // Update localStorage cache
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      if (user?.id) {
+        const updated = playlists.filter((p) => p.id !== pl.id);
+        localStorage.setItem(`playlists_${user.id}`, JSON.stringify(updated));
+      }
     } catch (err: any) {
       console.error(err);
     }
@@ -121,35 +172,74 @@ const YourLibrary = () => {
 
         {/* Mapped Playlists */}
         {playlists.map((pl) => (
-          <Link
-            href={`/playlist/${pl.id}`}
-            key={pl.id}
-            className="flex items-center gap-4 p-2 hover:bg-white/5 rounded-md transition-all group"
-          >
-            <div className="w-14 h-14 bg-[#1a1a1a] flex items-center justify-center rounded-sm flex-shrink-0 relative overflow-hidden border border-white/10 group-active:scale-95 transition-transform">
-              {pl.cover ? (
-                <img
-                  className="w-full h-full object-cover"
-                  src={pl.cover}
-                  alt={pl.name}
-                />
-              ) : (
-                <Music size={20} className="text-gray-800" />
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-black italic tracking-tight text-white uppercase group-hover:text-[#72fe8f] truncate">
-                {pl.name}
-              </h3>
-              <p className="text-[10px] font-mono text-gray-500 uppercase tracking-widest mt-0.5">
-                Playlist • Nocturn
-              </p>
-            </div>
-            <MoreVertical
-              size={16}
-              className="text-gray-700 opacity-0 group-hover:opacity-100 transition-opacity"
-            />
-          </Link>
+          <div key={pl.id} className="relative group flex items-center gap-4 p-2 hover:bg-white/5 rounded-md transition-all">
+            <Link
+              href={`/playlist/${pl.id}`}
+              className="flex items-center gap-4 flex-1 min-w-0"
+            >
+              <div className="w-14 h-14 bg-[#1a1a1a] flex items-center justify-center rounded-sm flex-shrink-0 relative overflow-hidden border border-white/10">
+                {pl.cover ? (
+                  <img
+                    className="w-full h-full object-cover"
+                    src={pl.cover}
+                    alt={pl.name}
+                    loading="lazy"
+                  />
+                ) : (
+                  <Music size={20} className="text-gray-800" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-black italic tracking-tight text-white uppercase group-hover:text-[#72fe8f] truncate">
+                  {pl.name}
+                </h3>
+                <p className="text-[10px] font-mono text-gray-500 uppercase tracking-widest mt-0.5">
+                  Playlist • Nocturn
+                </p>
+              </div>
+            </Link>
+
+            {/* More button */}
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                setMenuOpenId((prev) => (prev === pl.id ? null : pl.id));
+              }}
+              className="text-gray-700 opacity-0 group-hover:opacity-100 hover:text-white transition-all p-1 flex-shrink-0"
+            >
+              <MoreVertical size={16} />
+            </button>
+
+            {/* Dropdown */}
+            {menuOpenId === pl.id && (
+              <div
+                ref={menuRef}
+                className="absolute right-0 top-10 z-50 w-44 bg-[#1e1e1e] border border-white/10 rounded-lg shadow-2xl py-1 animate-in fade-in zoom-in-95 duration-100 origin-top-right"
+              >
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setMenuOpenId(null);
+                    setRenameTarget(pl);
+                    setRenameValue(pl.name);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs hover:bg-white/10 transition-colors text-gray-200"
+                >
+                  <Pencil size={13} /> Rename
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setMenuOpenId(null);
+                    handleDelete(pl);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs hover:bg-red-500/20 transition-colors text-red-400"
+                >
+                  <Trash2 size={13} /> Delete
+                </button>
+              </div>
+            )}
+          </div>
         ))}
       </div>
 
@@ -172,6 +262,44 @@ const YourLibrary = () => {
       >
         <Plus size={24} />
       </button>
+
+      {/* Modal Rename Playlist */}
+      {renameTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-[#141414] border border-[#72fe8f]/20 rounded-xl p-6 w-full max-w-sm shadow-[0_0_40px_rgba(114,254,143,0.1)]">
+            <h2 className="text-xl font-black italic text-[#72fe8f] mb-4 uppercase tracking-tighter">
+              RENAME PLAYLIST
+            </h2>
+            <input
+              type="text"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              placeholder="Nama baru"
+              className="w-full bg-[#0a0a0a] border border-white/10 rounded-md p-3 text-sm text-white focus:outline-none focus:border-[#72fe8f]/50 font-mono mb-6 placeholder:text-gray-600"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleRename();
+                if (e.key === "Escape") setRenameTarget(null);
+              }}
+            />
+            <div className="flex justify-end gap-3 font-mono text-xs uppercase tracking-widest">
+              <button
+                onClick={() => setRenameTarget(null)}
+                className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+              >
+                BATAL
+              </button>
+              <button
+                onClick={handleRename}
+                disabled={renameLoading || !renameValue.trim()}
+                className="px-4 py-2 bg-[#72fe8f] text-black font-bold rounded-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {renameLoading ? "..." : "SIMPAN"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Buat Playlist */}
       {isModalOpen && (

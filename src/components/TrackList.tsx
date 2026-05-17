@@ -62,6 +62,7 @@ export default function TrackList({
                     src={track.albumArt || track.cover_url || "/nocturn.avif"}
                     className="text-gray-700 group-hover:text-[#72fe8f] transition-colors w-full h-full object-cover"
                     alt={track.title || "Track Cover"}
+                    loading="lazy"
                     onError={(e) => { (e.target as HTMLImageElement).src = "/nocturn.avif"; }}
                   />
                 </div>

@@ -24,6 +24,16 @@ interface MenuContextType {
 
 const MenuContext = createContext<MenuContextType | undefined>(undefined);
 
+function inferAudioMime(url: string, serverType: string): string {
+  if (serverType && serverType !== "application/octet-stream") return serverType;
+  const ext = url.split("?")[0].split(".").pop()?.toLowerCase() ?? "";
+  const map: Record<string, string> = {
+    mp3: "audio/mpeg", flac: "audio/flac", m4a: "audio/mp4",
+    aac: "audio/aac", ogg: "audio/ogg", wav: "audio/wav", webm: "audio/webm",
+  };
+  return map[ext] ?? "audio/mpeg";
+}
+
 export function MenuProvider({ children }: { children: ReactNode }) {
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const [activeTrack, setActiveTrack] = useState<any>(null);
@@ -267,12 +277,22 @@ export function MenuProvider({ children }: { children: ReactNode }) {
         `${API_BASE}/music/${activeTrack.fileName || activeTrack.file_name}`;
       const res = await fetch(audioUrl);
       if (!res.ok) throw new Error("Gagal unduh audio");
-      const audioBlob = await res.blob();
+      const rawBlob = await res.blob();
+      // Pastikan MIME type audio benar — server kadang kirim application/octet-stream
+      // yang bikin browser pakai decoder kurang optimal saat play dari blob URL
+      const inferredType = inferAudioMime(audioUrl, rawBlob.type);
+      const audioBlob = inferredType !== rawBlob.type
+        ? new Blob([rawBlob], { type: inferredType })
+        : rawBlob;
 
-      const coverUrl = activeTrack.albumArt || activeTrack.cover_url || "/nocturn.avif";
-      const coverDataUrl = coverUrl.startsWith("data:")
+      const coverUrl = activeTrack.albumArt || activeTrack.cover_url || "";
+      const rawCoverDataUrl = coverUrl.startsWith("data:")
         ? coverUrl
-        : await fetchImageAsDataUrl(coverUrl);
+        : coverUrl
+          ? await fetchImageAsDataUrl(coverUrl)
+          : "";
+      // Hanya simpan jika benar-benar data URL, bukan path fallback
+      const coverDataUrl = rawCoverDataUrl.startsWith("data:") ? rawCoverDataUrl : "";
 
       await saveOfflineTrack(activeTrack, audioBlob, coverDataUrl);
       // Populate in-memory cache supaya playback bisa instant pakai blob URL

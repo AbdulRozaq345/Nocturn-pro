@@ -65,13 +65,14 @@ export default function DownloadedLibrary() {
       .map((t) => {
         const url = getCachedBlobUrl(t.id);
         if (!url) return null;
+        const cover = t.coverDataUrl?.startsWith("data:") ? t.coverDataUrl : undefined;
         return {
           id: t.id,
           title: t.title,
           artist: t.artist,
           duration: t.duration,
-          albumArt: t.coverDataUrl,
-          cover_url: t.coverDataUrl,
+          albumArt: cover,
+          cover_url: cover,
           audio_url: url,
           is_liked: false,
           is_offline: true,
@@ -81,13 +82,14 @@ export default function DownloadedLibrary() {
 
     setPlayerTracks(offlineQueue as any[]);
 
+    const cover = meta.coverDataUrl?.startsWith("data:") ? meta.coverDataUrl : undefined;
     playTrackRef.current({
       id: meta.id,
       title: meta.title,
       artist: meta.artist,
       duration: meta.duration,
-      albumArt: meta.coverDataUrl,
-      cover_url: meta.coverDataUrl,
+      albumArt: cover,
+      cover_url: cover,
       audio_url: blobUrl,
       is_liked: false,
       is_offline: true,
@@ -162,8 +164,7 @@ export default function DownloadedLibrary() {
             >
               {/* Cover */}
               <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0 relative bg-[#1a1a1a]">
-                {track.coverDataUrl &&
-                track.coverDataUrl !== "/nocturn.avif" ? (
+                {track.coverDataUrl?.startsWith("data:") ? (
                   <img
                     src={track.coverDataUrl}
                     alt={track.title}

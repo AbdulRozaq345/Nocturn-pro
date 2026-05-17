@@ -368,18 +368,18 @@ export default function Player() {
 
   // ── Prefetch lagu berikutnya supaya klik Next/auto-next instant ────────────
   // Prioritas: queue user-added → shuffle queue (kalau shuffle on) → track berikutnya di tracks
-  const nextPrefetchUrl = useMemo(() => {
-    if (queue.length > 0) return queue[0]?.audio_url ?? null;
-    if (isShuffle && shuffleQueue.length > 0)
-      return shuffleQueue[0]?.audio_url ?? null;
+  const nextTrack = useMemo(() => {
+    if (queue.length > 0) return queue[0] ?? null;
+    if (isShuffle && shuffleQueue.length > 0) return shuffleQueue[0] ?? null;
     if (!currentTrack || tracks.length === 0) return null;
     const idx = tracks.findIndex(
       (t) => getTrackKey(t) === getTrackKey(currentTrack),
     );
     if (idx < 0) return null;
-    const nextIdx = (idx + 1) % tracks.length;
-    return tracks[nextIdx]?.audio_url ?? null;
+    return tracks[(idx + 1) % tracks.length] ?? null;
   }, [queue, shuffleQueue, isShuffle, currentTrack, tracks]);
+
+  const nextPrefetchUrl = nextTrack?.audio_url ?? null;
 
   // Pre-load track berikutnya saat lagu sekarang sudah ≥30% diputar
   // (hindari prefetch terlalu dini biar tidak boros bandwidth kalau user skip cepat)
@@ -395,6 +395,19 @@ export default function Player() {
       prefetchAudioRef.current.load();
     } catch {}
   }, [nextPrefetchUrl, currentTime, duration]);
+
+  // Prefetch cover lagu berikutnya — mulai saat ≥30% diputar, sama threshold dengan audio
+  const prefetchCoverRef = useRef<HTMLImageElement | null>(null);
+  useEffect(() => {
+    const nextCover = nextTrack?.albumArt || nextTrack?.cover_url;
+    if (!nextCover || nextCover.startsWith("blob:") || nextCover.startsWith("data:")) return;
+    const ratio = duration > 0 ? currentTime / duration : 0;
+    if (ratio < 0.3) return;
+    if (prefetchCoverRef.current?.src === nextCover) return;
+    const img = new Image();
+    img.src = nextCover;
+    prefetchCoverRef.current = img;
+  }, [nextTrack, currentTime, duration]);
 
   // ── Upcoming tracks untuk queue display di overlay ─────────────────────────
   const upcomingTracks = useMemo(() => {
@@ -793,6 +806,7 @@ export default function Player() {
                     className="w-full h-full object-cover relative z-10 group-hover:scale-105 transition-transform duration-300 text-[0px]"
                     src={currentTrack.albumArt || currentTrack.cover_url || "/nocturn.avif"}
                     alt="Cover"
+                    fetchPriority="high"
                     onError={(e) => { (e.target as HTMLImageElement).src = "/nocturn.avif"; }}
                   />
                 </>

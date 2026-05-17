@@ -125,10 +125,11 @@ export function resolveAudioUrl(track: any): string | null {
   return track.audio_url ?? null;
 }
 
-/** Resolve cover URL — pakai data URL offline kalau ada. */
+/** Resolve cover URL — pakai data URL offline kalau ada dan valid. */
 export function resolveCoverUrl(track: any): string | null {
   if (!track) return null;
   const meta = metaCache.get(String(track.id));
-  if (meta?.coverDataUrl) return meta.coverDataUrl;
+  // Hanya pakai offline cover jika benar-benar data URL (bukan fallback path)
+  if (meta?.coverDataUrl?.startsWith("data:")) return meta.coverDataUrl;
   return track.albumArt || track.cover_url || null;
 }
