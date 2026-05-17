@@ -1161,7 +1161,7 @@ function SleepTimerMenu({
   return (
     <div
       ref={ref}
-      className="absolute bottom-full right-0 mb-2 w-56 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl py-2 z-[200] animate-in fade-in zoom-in-95 duration-100"
+      className="absolute bottom-full right-0 mb-2 w-56 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl py-2 z-[900] animate-in fade-in zoom-in-95 duration-100"
     >
       <div className="px-3 pb-2 border-b border-white/5 mb-1.5">
         <div className="flex items-center gap-2">
