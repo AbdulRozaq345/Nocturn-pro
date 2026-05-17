@@ -31,24 +31,18 @@ export function AudioAnalyserProvider({ children }: { children: ReactNode }) {
       const Ctx =
         window.AudioContext || (window as any).webkitAudioContext;
       if (!Ctx) return null;
-      const ctx = new Ctx();
+      // latencyHint 'playback' → buffer lebih besar → tahan JS-thread throttle di background
+      const ctx = new Ctx({ latencyHint: "playback" });
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 1024;
       analyser.smoothingTimeConstant = 0.85;
       analyser.connect(ctx.destination);
       audioCtxRef.current = ctx;
       analyserRef.current = analyser;
-
-      // ── Auto-resume saat browser/OS suspend context ─────────────────────
-      // Penting buat PWA: saat user pencet Home, browser bisa suspend
-      // AudioContext. Karena audio kita di-route lewat MediaElementAudioSource,
-      // suspend = no sound (meski <audio> tetap jalan). Auto-resume di sini
-      // memastikan lagu berikutnya tetap kedengaran.
-      ctx.addEventListener?.("statechange", () => {
-        if (ctx.state === "suspended") {
-          ctx.resume().catch(() => {});
-        }
-      });
+      // TIDAK pasang statechange auto-resume: saat browser suspend context di
+      // background, langsung resume → browser suspend lagi → loop ketat →
+      // setiap transisi flush buffer audio → crackle. Biarkan browser yang
+      // kontrol suspension; resume hanya saat ada sinyal eksplisit dari player.
       return ctx;
     } catch {
       return null;

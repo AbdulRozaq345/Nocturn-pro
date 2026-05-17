@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Home,
   Library,
@@ -16,6 +17,7 @@ import { logout } from "@/lib/auth-service";
 
 
 export default function Sidebar() {
+  const router = useRouter();
   const [playlists, setPlaylists] = useState<{ id: number; name: string }[]>(
     [],
   );
@@ -153,11 +155,12 @@ export default function Sidebar() {
         </div>
 
         <div className="px-6 mb-8">
-          <div className="relative group">
+          <div className="relative group cursor-pointer" onClick={() => router.push("/search")}>
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4 group-focus-within:text-[#72fe8f]" />
             <input
               placeholder="SEARCH"
-              className="w-full bg-[#191919] border-none text-[0.6rem] pl-10 py-2 rounded-sm focus:ring-1 focus:ring-[#72fe8f]/50 transition-all uppercase tracking-widest"
+              readOnly
+              className="w-full bg-[#191919] border-none text-[0.6rem] pl-10 py-2 rounded-sm focus:ring-1 focus:ring-[#72fe8f]/50 transition-all uppercase tracking-widest cursor-pointer"
             />
           </div>
         </div>

@@ -518,9 +518,10 @@ export default function Player() {
   // seharusnya jalan tapi audio.paused jadi true (browser auto-pause).
   useEffect(() => {
     const onVisibility = () => {
+      // Hanya resume saat kembali ke foreground — jangan resume saat masuk
+      // background (browser sedang proses suspend → race condition → crackle)
+      if (document.hidden) return;
       resumeContext();
-      // Kalau state isPlaying tapi audio kebetulan ke-pause oleh sistem,
-      // mulai lagi
       const audio = audioRef.current;
       if (audio && isPlaying && audio.paused && currentTrack?.audio_url) {
         audio.play().catch(() => {});
