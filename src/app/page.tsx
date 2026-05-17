@@ -158,7 +158,7 @@ export default function NocturnPage() {
                 <img
                   className="w-[105%] h-[105%] -left-[2.5%] -top-[2.5%] object-cover transform scale-105 group-hover:scale-110 transition-transform duration-700 absolute bg-white/5 animate-pulse text-transparent text-[0px]"
                   alt="Cover"
-                  src={"/nocturn.avif"}
+                  src={currentTrack?.cover_url || currentTrack?.albumArt || "/nocturn.avif"}
                 />
               ) : (
                 <div className="w-full h-full bg-white/10 animate-pulse absolute inset-0"></div>
