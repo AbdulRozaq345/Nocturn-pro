@@ -16,7 +16,7 @@ import {
   X,
   Music,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const FullscreenVisualizer = dynamic(
   () => import("@/components/three/FullscreenVisualizer"),
@@ -33,10 +33,55 @@ export default function MobileOverlay({
 }: any) {
   const [imgError, setImgError] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
+  const [accentColor, setAccentColor] = useState("#72fe8f");
 
   const coverSrc = !imgError
     ? currentTrack?.albumArt || currentTrack?.cover_url || "/nocturn.avif"
     : "/nocturn.avif";
+
+  // Extract warna dominan dari cover — fallback ke neon-green kalau CORS block atau gagal
+  useEffect(() => {
+    if (!coverSrc || coverSrc === "/nocturn.avif") {
+      setAccentColor("#72fe8f");
+      return;
+    }
+    let cancelled = false;
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      if (cancelled) return;
+      try {
+        const SIZE = 40;
+        const canvas = document.createElement("canvas");
+        canvas.width = SIZE;
+        canvas.height = SIZE;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.drawImage(img, 0, 0, SIZE, SIZE);
+        const { data } = ctx.getImageData(0, 0, SIZE, SIZE);
+        let wR = 0, wG = 0, wB = 0, total = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i], g = data[i + 1], b = data[i + 2];
+          const max = Math.max(r, g, b), min = Math.min(r, g, b);
+          const lightness = (max + min) / 510;
+          const sat = max === 0 ? 0 : (max - min) / max;
+          // Abaikan pixel abu-abu, terlalu gelap, atau terlalu terang
+          if (sat < 0.3 || lightness < 0.1 || lightness > 0.92) continue;
+          const w = sat * (1 - Math.abs(lightness - 0.5) * 1.4);
+          wR += r * w; wG += g * w; wB += b * w; total += w;
+        }
+        if (total > 0 && !cancelled) {
+          setAccentColor(
+            `rgb(${Math.round(wR / total)},${Math.round(wG / total)},${Math.round(wB / total)})`
+          );
+        }
+      } catch {
+        // Canvas tainted karena CORS — keep default
+      }
+    };
+    img.src = coverSrc;
+    return () => { cancelled = true; };
+  }, [coverSrc]);
 
   const handleShare = async () => {
     const title = currentTrack?.title || "Lagu";
@@ -165,9 +210,10 @@ export default function MobileOverlay({
               <div
                 className="absolute -inset-3 rounded-2xl opacity-40"
                 style={{
-                  background: "conic-gradient(from 0deg, #72fe8f, transparent, #72fe8f)",
+                  background: `conic-gradient(from 0deg, ${accentColor}, transparent, ${accentColor})`,
                   animation: "spin-slow 4s linear infinite",
                   borderRadius: "20px",
+                  transition: "background 0.8s ease",
                 }}
               />
             )}
