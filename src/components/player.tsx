@@ -126,8 +126,7 @@ export default function Player() {
   const updateMediaSession = (track: any, playing: boolean) => {
     if (!("mediaSession" in navigator) || !track) return;
     try {
-      const artworkSrc: string =
-        track.cover_url || "/icons/icon-512x512.png";
+      const artworkSrc: string = track.cover_url || "/icons/icon-512x512.png";
       const artworkUrl = artworkSrc.startsWith("http")
         ? artworkSrc
         : `${window.location.origin}${artworkSrc}`;
@@ -352,7 +351,9 @@ export default function Player() {
     const nowLiked = !wasLiked;
 
     // Optimistic update
-    setCurrentTrack((prev: any) => prev ? { ...prev, is_liked: nowLiked } : prev);
+    setCurrentTrack((prev: any) =>
+      prev ? { ...prev, is_liked: nowLiked } : prev,
+    );
     setTracks((prev) =>
       prev.map((t) => (t.id === trackId ? { ...t, is_liked: nowLiked } : t)),
     );
@@ -366,7 +367,9 @@ export default function Player() {
       }
     } catch {
       // Revert on error
-      setCurrentTrack((prev: any) => prev ? { ...prev, is_liked: wasLiked } : prev);
+      setCurrentTrack((prev: any) =>
+        prev ? { ...prev, is_liked: wasLiked } : prev,
+      );
       setTracks((prev) =>
         prev.map((t) => (t.id === trackId ? { ...t, is_liked: wasLiked } : t)),
       );
@@ -408,7 +411,12 @@ export default function Player() {
   const prefetchCoverRef = useRef<HTMLImageElement | null>(null);
   useEffect(() => {
     const nextCover = nextTrack?.albumArt || nextTrack?.cover_url;
-    if (!nextCover || nextCover.startsWith("blob:") || nextCover.startsWith("data:")) return;
+    if (
+      !nextCover ||
+      nextCover.startsWith("blob:") ||
+      nextCover.startsWith("data:")
+    )
+      return;
     const ratio = duration > 0 ? currentTime / duration : 0;
     if (ratio < 0.3) return;
     if (prefetchCoverRef.current?.src === nextCover) return;
@@ -765,7 +773,7 @@ export default function Player() {
 
   return (
     <>
-      <footer className="fixed z-[100] transition-all bottom-[72px] left-2 w-[calc(100%-16px)] h-14 bg-[#1a1a1a] rounded-lg shadow-2xl overflow-hidden md:bottom-0 md:left-0 md:w-full md:h-24 md:bg-[#0e0e0e]/90 md:backdrop-blur-xl md:rounded-none md:border-t md:border-white/5">
+      <footer className="fixed z-[9999] transition-all bottom-[72px] left-2 w-[calc(100%-16px)] h-14 bg-[#1a1a1a] rounded-lg shadow-2xl overflow-hidden md:overflow-visible md:bottom-0 md:left-0 md:w-full md:h-24 md:bg-[#0e0e0e]/90 md:backdrop-blur-xl md:rounded-none md:border-t md:border-white/5">
         <audio
           ref={audioRef}
           src={currentTrack?.audio_url || undefined}
@@ -810,9 +818,15 @@ export default function Player() {
             <div className="w-10 h-10 rounded-md overflow-hidden bg-[#2a2a2a] flex-shrink-0 relative shadow-sm">
               <img
                 className="text-transparent w-full h-full object-cover text-[0px]"
-                src={currentTrack?.albumArt || currentTrack?.cover_url || "/nocturn.avif"}
+                src={
+                  currentTrack?.albumArt ||
+                  currentTrack?.cover_url ||
+                  "/nocturn.avif"
+                }
                 alt="Cover"
-                onError={(e) => { (e.target as HTMLImageElement).src = "/nocturn.avif"; }}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "/nocturn.avif";
+                }}
               />
             </div>
 
@@ -830,7 +844,10 @@ export default function Player() {
           <div className="flex items-center gap-3 flex-shrink-0 pr-1">
             <button
               className="text-[#a1a1aa] hover:text-white transition-colors"
-              onClick={(e) => { e.stopPropagation(); setIsMaximized(true); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsMaximized(true);
+              }}
             >
               <MonitorSpeaker size={20} />
             </button>
@@ -838,7 +855,10 @@ export default function Player() {
             {/* Tombol Like */}
             <button
               className={`transition-colors ${currentTrack?.is_liked ? "text-[#72fe8f]" : "text-[#a1a1aa] hover:text-white"}`}
-              onClick={(e) => { e.stopPropagation(); handleToggleLike(); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleToggleLike();
+              }}
             >
               <Heart
                 size={20}
@@ -878,20 +898,33 @@ export default function Player() {
                     {/* Blurred cover sebagai background glow */}
                     <img
                       aria-hidden
-                      src={currentTrack.albumArt || currentTrack.cover_url || "/nocturn.avif"}
+                      src={
+                        currentTrack.albumArt ||
+                        currentTrack.cover_url ||
+                        "/nocturn.avif"
+                      }
                       className="absolute inset-0 w-full h-full object-cover scale-110 opacity-60"
                       style={{ filter: "blur(8px)" }}
                     />
                     <img
                       className="w-full h-full object-cover relative z-10 group-hover:scale-105 transition-transform duration-300 text-[0px]"
-                      src={currentTrack.albumArt || currentTrack.cover_url || "/nocturn.avif"}
+                      src={
+                        currentTrack.albumArt ||
+                        currentTrack.cover_url ||
+                        "/nocturn.avif"
+                      }
                       alt="Cover"
                       fetchPriority="high"
-                      onError={(e) => { (e.target as HTMLImageElement).src = "/nocturn.avif"; }}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "/nocturn.avif";
+                      }}
                     />
                   </>
                 ) : (
-                  <Music size={16} className="text-gray-700 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                  <Music
+                    size={16}
+                    className="text-gray-700 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+                  />
                 )}
               </div>
 
@@ -1034,7 +1067,9 @@ export default function Player() {
                 <SleepTimerMenu
                   sleepTimerUntil={sleepTimerUntil}
                   onSelect={(mins) => {
-                    setSleepTimerUntil(mins ? Date.now() + mins * 60 * 1000 : null);
+                    setSleepTimerUntil(
+                      mins ? Date.now() + mins * 60 * 1000 : null,
+                    );
                     setIsSleepMenuOpen(false);
                   }}
                   onClose={() => setIsSleepMenuOpen(false)}
@@ -1058,7 +1093,10 @@ export default function Player() {
               )}
             </button>
 
-            <button onClick={toggleMute} className="hover:text-white p-1.5 rounded-full hover:bg-white/5 transition-colors">
+            <button
+              onClick={toggleMute}
+              className="hover:text-white p-1.5 rounded-full hover:bg-white/5 transition-colors"
+            >
               {isMuted || volume === 0 ? (
                 <VolumeX size={18} className="text-red-500" />
               ) : (
@@ -1161,7 +1199,7 @@ function SleepTimerMenu({
   return (
     <div
       ref={ref}
-      className="absolute bottom-full right-0 mb-2 w-56 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl py-2 z-[900] animate-in fade-in zoom-in-95 duration-100"
+      className="absolute bottom-full right-0 mb-2 w-56 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl py-2 z-[9999] animate-in fade-in zoom-in-95 duration-100"
     >
       <div className="px-3 pb-2 border-b border-white/5 mb-1.5">
         <div className="flex items-center gap-2">
