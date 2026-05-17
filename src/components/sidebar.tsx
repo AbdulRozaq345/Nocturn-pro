@@ -14,8 +14,6 @@ import {
 import api from "@/lib/axios";
 import { logout } from "@/lib/auth-service";
 
-
-
 export default function Sidebar() {
   const router = useRouter();
   const [playlists, setPlaylists] = useState<{ id: number; name: string }[]>(
@@ -45,8 +43,6 @@ export default function Sidebar() {
   }, []);
 
   useEffect(() => {
-
-
     const fetchSidebarPlaylists = async () => {
       const token = localStorage.getItem("token");
       if (!token) return; // Skip fetching if not authenticated
@@ -110,7 +106,7 @@ export default function Sidebar() {
               </span>
             </h1>
           </div>
- 
+
           {/* PP GOOGLE SECTION */}
           {user && (
             <div className="relative" ref={profileRef}>
@@ -120,12 +116,14 @@ export default function Sidebar() {
                 className={`w-8 h-8 rounded-full border overflow-hidden transition-all shadow-[0_0_15px_rgba(114,254,143,0.1)] 
                 ${isProfileOpen ? "border-[#72fe8f] scale-110" : "border-white/10 hover:border-[#72fe8f]/50"}`}
               >
-                <img className="text-transparent w-full h-full object-cover bg-white/5 animate-pulse text-[0px]" src={
+                <img
+                  className="text-transparent w-full h-full object-cover bg-white/5 animate-pulse text-[0px]"
+                  src={
                     user.avatar ||
                     `https://ui-avatars.com/api/?name=${user.name}&background=191919&color=72fe8f&bold=true`
                   }
                   alt="User"
-                  />
+                />
               </button>
 
               {/* DROPDOWN LOGOUT (Muncul berdasarkan State) */}
@@ -155,7 +153,10 @@ export default function Sidebar() {
         </div>
 
         <div className="px-6 mb-8">
-          <div className="relative group cursor-pointer" onClick={() => router.push("/search")}>
+          <div
+            className="relative group cursor-pointer"
+            onClick={() => router.push("/search")}
+          >
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4 group-focus-within:text-[#72fe8f]" />
             <input
               placeholder="SEARCH"
