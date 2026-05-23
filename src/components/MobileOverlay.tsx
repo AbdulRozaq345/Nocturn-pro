@@ -16,9 +16,11 @@ import {
   X,
   Music,
   Moon,
+  Mic2,
 } from "lucide-react";
 import { useState } from "react";
 import SleepTimerMenu from "./SleepTimerMenu";
+import LyricsPanel from "./LyricsPanel";
 
 const FullscreenVisualizer = dynamic(
   () => import("@/components/three/FullscreenVisualizer"),
@@ -37,6 +39,7 @@ export default function MobileOverlay({
 }: any) {
   const [imgError, setImgError] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
+  const [showLyrics, setShowLyrics] = useState(false);
   const [isSleepMenuOpen, setIsSleepMenuOpen] = useState(false);
 
   const coverSrc = !imgError
@@ -160,42 +163,51 @@ export default function MobileOverlay({
           </button>
         </div>
 
-        {/* ── Album Cover ── */}
-        <div className="flex-1 flex items-center justify-center">
-          <div
-            className="relative w-72 h-72 md:w-80 md:h-80"
-            style={{ filter: "drop-shadow(0 24px 64px rgba(0,0,0,0.8))" }}
-          >
-            {props.isPlaying && (
-              <div
-                className="absolute -inset-3 overflow-hidden opacity-60"
-                style={{
-                  borderRadius: "20px",
-                  animation: "spin-slow 4s linear infinite",
-                  WebkitMaskImage: "conic-gradient(from 0deg, black, transparent 38%, transparent 62%, black)",
-                  maskImage: "conic-gradient(from 0deg, black, transparent 38%, transparent 62%, black)",
-                }}
-              >
-                <img
-                  src={coverSrc}
-                  aria-hidden
-                  className="absolute inset-0 w-full h-full object-cover scale-110"
-                  style={{ filter: "saturate(3) brightness(1.6) blur(6px)" }}
-                />
-              </div>
-            )}
-            <img
-              src={coverSrc}
-              alt={currentTrack?.title || "Cover"}
-              onError={() => setImgError(true)}
-              className="w-full h-full object-cover rounded-2xl relative z-10"
-              style={{
-                transform: props.isPlaying ? "scale(1)" : "scale(0.95)",
-                transition: "transform 0.4s ease",
-                boxShadow: "0 8px 48px rgba(0,0,0,0.7)",
-              }}
+        {/* ── Album Cover or Lyrics ── */}
+        <div className="flex-1 flex items-center justify-center overflow-hidden">
+          {showLyrics ? (
+            <LyricsPanel
+              lyrics={props.lyrics ?? null}
+              currentTime={props.currentTime ?? 0}
+              isLoading={props.isLyricsLoading ?? false}
+              className="w-full h-full"
             />
-          </div>
+          ) : (
+            <div
+              className="relative w-72 h-72 md:w-80 md:h-80"
+              style={{ filter: "drop-shadow(0 24px 64px rgba(0,0,0,0.8))" }}
+            >
+              {props.isPlaying && (
+                <div
+                  className="absolute -inset-3 overflow-hidden opacity-60"
+                  style={{
+                    borderRadius: "20px",
+                    animation: "spin-slow 4s linear infinite",
+                    WebkitMaskImage: "conic-gradient(from 0deg, black, transparent 38%, transparent 62%, black)",
+                    maskImage: "conic-gradient(from 0deg, black, transparent 38%, transparent 62%, black)",
+                  }}
+                >
+                  <img
+                    src={coverSrc}
+                    aria-hidden
+                    className="absolute inset-0 w-full h-full object-cover scale-110"
+                    style={{ filter: "saturate(3) brightness(1.6) blur(6px)" }}
+                  />
+                </div>
+              )}
+              <img
+                src={coverSrc}
+                alt={currentTrack?.title || "Cover"}
+                onError={() => setImgError(true)}
+                className="w-full h-full object-cover rounded-2xl relative z-10"
+                style={{
+                  transform: props.isPlaying ? "scale(1)" : "scale(0.95)",
+                  transition: "transform 0.4s ease",
+                  boxShadow: "0 8px 48px rgba(0,0,0,0.7)",
+                }}
+              />
+            </div>
+          )}
         </div>
 
         {/* Track Info + Like */}
@@ -316,6 +328,16 @@ export default function MobileOverlay({
               />
             )}
           </div>
+
+          {/* Lyrics toggle */}
+          <button
+            onClick={() => setShowLyrics((v) => !v)}
+            className={`transition-colors ${showLyrics ? "text-[#72fe8f]" : "hover:text-white"}`}
+            aria-label="Lirik lagu"
+            aria-pressed={showLyrics}
+          >
+            <Mic2 size={20} />
+          </button>
 
           <button
             onClick={() => setShowQueue(true)}
