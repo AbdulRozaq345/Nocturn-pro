@@ -15,6 +15,8 @@ import {
   Heart,
   ListMusic,
   Moon,
+  Mic2,
+  X,
 } from "lucide-react";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { usePlayer } from "@/context/PlayerContext";
@@ -36,6 +38,9 @@ import { setPersistedLikedTrackId } from "@/lib/utils";
 import CurvedLoop from "./CurvedLoop";
 import MobileOverlay from "./MobileOverlay";
 import SleepTimerMenu from "./SleepTimerMenu";
+import LyricsPanel from "./LyricsPanel";
+import { fetchLyrics } from "@/lib/lyricsCache";
+import type { LyricLine } from "@/lib/lyricsCache";
 
 export default function Player() {
   const {
@@ -56,6 +61,9 @@ export default function Player() {
     setSleepTimerUntil,
   } = usePlayer();
   const [isSleepMenuOpen, setIsSleepMenuOpen] = useState(false);
+  const [isLyricsOpen, setIsLyricsOpen] = useState(false);
+  const [lyrics, setLyrics] = useState<LyricLine[] | null>(null);
+  const [isLyricsLoading, setIsLyricsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   // Hidden prefetcher — warm up HTTP cache untuk lagu berikutnya
@@ -771,6 +779,25 @@ export default function Player() {
     return () => clearTimeout(id);
   }, [sleepTimerUntil]);
 
+  // Fetch lirik saat lagu berganti — cancel jika track sudah ganti sebelum response tiba
+  useEffect(() => {
+    if (!currentTrack?.id) {
+      setLyrics(null);
+      setIsLyricsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setIsLyricsLoading(true);
+    fetchLyrics(currentTrack.id).then((lines) => {
+      if (cancelled) return;
+      setLyrics(lines);
+      setIsLyricsLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentTrack?.id]);
+
   return (
     <>
       <footer className="fixed z-[100] transition-all bottom-[72px] left-2 w-[calc(100%-16px)] h-14 bg-[#1a1a1a] rounded-lg shadow-2xl overflow-hidden md:overflow-visible md:bottom-0 md:left-0 md:w-full md:h-24 md:bg-[#0e0e0e]/90 md:backdrop-blur-xl md:rounded-none md:border-t md:border-white/5">
@@ -1077,6 +1104,18 @@ export default function Player() {
               )}
             </div>
 
+            {/* Lyrics toggle */}
+            <button
+              onClick={() => setIsLyricsOpen((v) => !v)}
+              className={`relative p-1.5 rounded-full hover:bg-white/5 transition-colors ${
+                isLyricsOpen ? "text-[#72fe8f]" : "hover:text-white"
+              }`}
+              title="Lirik"
+              aria-pressed={isLyricsOpen}
+            >
+              <Mic2 size={16} />
+            </button>
+
             {/* Queue toggle */}
             <button
               onClick={() => setIsQueueOpen(!isQueueOpen)}
@@ -1127,6 +1166,30 @@ export default function Player() {
         </div>
       </footer>
 
+      {/* ── Lyrics Panel (desktop only, floating above footer) ── */}
+      {isLyricsOpen && (
+        <div className="fixed z-[99] bottom-24 left-1/2 -translate-x-1/2 w-[440px] max-h-[58vh] hidden md:flex flex-col bg-[#0d0d0d]/96 backdrop-blur-xl border border-white/5 rounded-2xl shadow-2xl overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5 flex-shrink-0">
+            <span className="text-[9px] font-mono tracking-[0.35em] text-[#72fe8f] uppercase">
+              Lirik
+            </span>
+            <button
+              onClick={() => setIsLyricsOpen(false)}
+              className="text-gray-600 hover:text-white transition-colors p-1"
+              aria-label="Tutup lirik"
+            >
+              <X size={13} />
+            </button>
+          </div>
+          <LyricsPanel
+            lyrics={lyrics}
+            currentTime={currentTime}
+            isLoading={isLyricsLoading}
+            className="flex-1"
+          />
+        </div>
+      )}
+
       {isMaximized && (
         <MobileOverlay
           onClose={() => setIsMaximized(false)}
@@ -1149,6 +1212,8 @@ export default function Player() {
           upcomingTracks={upcomingTracks}
           sleepTimerUntil={sleepTimerUntil}
           setSleepTimerUntil={setSleepTimerUntil}
+          lyrics={lyrics}
+          isLyricsLoading={isLyricsLoading}
         />
       )}
     </>
