@@ -1,12 +1,3 @@
-/**
- * Fetch lirik dari backend dan cache di localStorage selama 7 hari.
- * Format yang didukung:
- *   - LRC string: "[mm:ss.xx] teks"
- *   - JSON { lyrics: "<lrc string>" }
- *   - JSON { lines: [{ time, text }] }
- *   - JSON array [{ time, text }]
- */
-
 import api from "@/lib/axios";
 
 export interface LyricLine {
@@ -21,7 +12,8 @@ interface CachedEntry {
 
 const TTL = 7 * 24 * 60 * 60 * 1000;
 
-const cacheKey = (id: string | number) => `nocturn_lyrics_${id}`;
+// v2: busts old cache that used wrong shape before normalize was fixed
+const cacheKey = (id: string | number) => `nocturn_lyrics_v2_${id}`;
 
 function readCache(id: string | number): LyricLine[] | null | undefined {
   if (typeof window === "undefined") return undefined;
@@ -61,11 +53,29 @@ function parseLRC(lrc: string): LyricLine[] | null {
   return lines.length > 0 ? lines : null;
 }
 
+// Plain text: no timestamps — all lines get time=999999 so activeIndex stays -1
+// (panel shows static list at 0.45 opacity, no auto-scroll)
+function parsePlain(text: string): LyricLine[] | null {
+  const lines = text
+    .split("\n")
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .map((t) => ({ time: 999999, text: t }));
+  return lines.length > 0 ? lines : null;
+}
+
 function normalize(data: unknown): LyricLine[] | null {
   if (!data) return null;
   if (typeof data === "string") return parseLRC(data);
   if (typeof data === "object" && data !== null) {
     const d = data as Record<string, unknown>;
+
+    // Backend shape: { found, syncedText, plainText, isSynced, ... }
+    if (d.found === false) return null;
+    if (typeof d.syncedText === "string" && d.syncedText.trim()) return parseLRC(d.syncedText);
+    if (typeof d.plainText === "string" && d.plainText.trim()) return parsePlain(d.plainText);
+
+    // Fallback shapes
     if (typeof d.lyrics === "string") return parseLRC(d.lyrics);
     if (Array.isArray(d.lines) && d.lines.length) return d.lines as LyricLine[];
     if (Array.isArray(data) && (data as unknown[]).length) return data as LyricLine[];

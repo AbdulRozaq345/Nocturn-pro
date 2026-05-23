@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useMemo } from "react";
+import React, { useRef, useEffect, useMemo } from "react";
 import { Music2 } from "lucide-react";
 import type { LyricLine } from "@/lib/lyricsCache";
 
@@ -36,7 +36,12 @@ export default function LyricsPanel({
     const container = scrollRef.current;
     if (!el || !container) return;
     const target = el.offsetTop - container.clientHeight / 2 + el.clientHeight / 2;
-    container.scrollTo({ top: target, behavior: "smooth" });
+    // Be defensive about DOM typings: some TS setups may not include Element.scrollTo
+    if (typeof (container as any).scrollTo === "function") {
+      (container as any).scrollTo({ top: target, behavior: "smooth" });
+    } else {
+      container.scrollTop = target;
+    }
   }, [activeIndex]);
 
   // Reset posisi scroll saat lagu berganti
@@ -96,7 +101,7 @@ export default function LyricsPanel({
           return (
             <div
               key={`${line.time}-${i}`}
-              ref={(el) => {
+              ref={(el: HTMLDivElement | null) => {
                 lineRefs.current[i] = el;
               }}
               aria-current={isActive || undefined}
