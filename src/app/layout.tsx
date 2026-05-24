@@ -79,7 +79,7 @@ export default function RootLayout({
                 <Sidebar />
                 <div className="flex-grow flex flex-col relative overflow-y-auto custom-scrollbar w-full">
                   <Topbar />
-                  <MaintenanceAlert pollIntervalMs={5000} />
+                  {/* <MaintenanceAlert pollIntervalMs={5000} /> */}
                   {children}
                 </div>
               </div>
