@@ -38,17 +38,6 @@ export default function Topbar() {
     <>
       {/* ========== DESKTOP TOPBAR ========== */}
       <header className="hidden md:flex h-16 bg-[#0f0f0f]/90 backdrop-blur-xl border-b border-white/[0.04] sticky top-0 z-40 px-6 gap-4 items-center">
-        {/* Search Bar */}
-        <form onSubmit={handleSearch} className="relative max-w-md w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4 pointer-events-none" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search songs, artists..."
-            className="w-full bg-white/[0.07] border border-white/[0.08] hover:border-white/20 focus:border-[#72fe8f]/40 focus:outline-none rounded-full py-2 pl-10 pr-4 text-sm text-white placeholder:text-gray-500 transition-colors"
-          />
-        </form>
 
         {/* Spacer */}
         <div className="flex-1" />

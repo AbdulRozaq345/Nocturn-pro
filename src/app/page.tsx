@@ -735,16 +735,29 @@ export default function NocturnPage() {
             </div>
           </section>
 
-          {/* Recently Deployed (Using Tracks Data) */}
+          {/* Recommended (random picks from track pool) */}
           <section className="py-4 px-5">
-            <h2 className="text-lg font-bold tracking-tight text-white mb-4 uppercase relative inline-block">
-              Recently Deployed
-              <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-[#72fe8f]/50"></span>
-            </h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold tracking-tight text-white uppercase relative inline-block">
+                Rekomendasi
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-[#72fe8f]/50"></span>
+              </h2>
+              <button
+                onClick={() =>
+                  setRecommendedSeed(
+                    Math.floor(Math.random() * 1_000_000) + 1,
+                  )
+                }
+                className="flex items-center gap-1.5 text-[10px] font-mono text-[#72fe8f] tracking-widest uppercase hover:underline"
+              >
+                <Shuffle size={11} />
+                Shuffle
+              </button>
+            </div>
 
             <div className="flex flex-col gap-3">
-              {tracks && tracks.length > 0 ? (
-                tracks.slice(0, 5).map((track, i) => (
+              {recommendedTracks.length > 0 ? (
+                recommendedTracks.slice(0, 8).map((track: any, i: number) => (
                   <div
                     key={track.id || i}
                     onClick={() => {
