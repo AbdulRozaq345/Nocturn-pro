@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 
 import TrackList from "@/components/TrackList";
 import api from "@/lib/axios";
@@ -9,7 +9,62 @@ import { useGlobalMenu } from "@/context/MenuContext";
 import { applyPersistedLikeState, buildCoverUrl } from "@/lib/utils";
 import { readTracksCache, writeTracksCache } from "@/lib/tracksCache";
 import { getRecentlyPlayed } from "@/lib/playStats";
-import { Play, Pause, Music, History } from "lucide-react";
+import {
+  Play,
+  Pause,
+  Music,
+  History,
+  ChevronLeft,
+  ChevronRight,
+  Shuffle,
+} from "lucide-react";
+
+const MOODS = [
+  "All",
+  "Energize",
+  "Workout",
+  "Relax",
+  "Focus",
+  "Commute",
+  "Romance",
+  "Sad",
+  "Feel good",
+  "Sleep",
+] as const;
+type Mood = (typeof MOODS)[number];
+
+function hashId(id: string | number) {
+  const s = String(id);
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = (h << 5) - h + s.charCodeAt(i);
+    h |= 0;
+  }
+  return Math.abs(h);
+}
+
+// Deterministically assign each track to one of the 9 non-"All" moods,
+// so the mood filter has stable, non-overlapping buckets without backend metadata.
+function moodForTrack(id: string | number): Mood {
+  return MOODS[1 + (hashId(id) % (MOODS.length - 1))];
+}
+
+function shuffleWithSeed<T>(arr: T[], seed: number): T[] {
+  const out = arr.slice();
+  let s = seed || 1;
+  const rand = () => {
+    s = (s + 0x6d2b79f5) | 0;
+    let z = s;
+    z = Math.imul(z ^ (z >>> 15), z | 1);
+    z ^= z + Math.imul(z ^ (z >>> 7), z | 61);
+    return ((z ^ (z >>> 14)) >>> 0) / 4294967296;
+  };
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
 
 export default function NocturnPage() {
   const { showMenu } = useGlobalMenu();
@@ -25,6 +80,15 @@ export default function NocturnPage() {
 
   const [playlists, setPlaylists] = useState<any[]>([]);
   const [recentlyPlayedIds, setRecentlyPlayedIds] = useState<string[]>([]);
+  const [selectedMood, setSelectedMood] = useState<Mood>("All");
+  const [quickPicksSeed, setQuickPicksSeed] = useState<number>(() =>
+    Math.floor(Math.random() * 1_000_000) + 1,
+  );
+  const [recommendedSeed, setRecommendedSeed] = useState<number>(() =>
+    Math.floor(Math.random() * 1_000_000) + 1,
+  );
+  const listenAgainRef = useRef<HTMLDivElement | null>(null);
+  const recommendedRef = useRef<HTMLDivElement | null>(null);
   const currentTrackRef = useRef(currentTrack);
   useEffect(() => {
     currentTrackRef.current = currentTrack;
@@ -42,6 +106,37 @@ export default function NocturnPage() {
       .filter(Boolean)
       .slice(0, 10);
   }, [recentlyPlayedIds, tracks]);
+
+  // Tracks filtered by the currently selected mood chip.
+  const moodFilteredTracks = useMemo(() => {
+    if (selectedMood === "All") return tracks;
+    return tracks.filter((t: any) => moodForTrack(t.id) === selectedMood);
+  }, [tracks, selectedMood]);
+
+  // Random sample of up to 16 tracks for "Quick picks". Re-shuffles when the
+  // user changes mood OR clicks the "More →" / shuffle button.
+  const quickPicks = useMemo(() => {
+    const pool = moodFilteredTracks.length > 0 ? moodFilteredTracks : tracks;
+    return shuffleWithSeed(pool, quickPicksSeed).slice(0, 16);
+  }, [moodFilteredTracks, tracks, quickPicksSeed]);
+
+  // Recommended carousel: shuffled remainder, excludes whatever is in quickPicks.
+  const recommendedTracks = useMemo(() => {
+    const pool = moodFilteredTracks.length > 0 ? moodFilteredTracks : tracks;
+    const taken = new Set(quickPicks.map((t: any) => t.id));
+    const rest = pool.filter((t: any) => !taken.has(t.id));
+    return shuffleWithSeed(rest, recommendedSeed).slice(0, 14);
+  }, [moodFilteredTracks, tracks, quickPicks, recommendedSeed]);
+
+  const scrollRow = useCallback(
+    (ref: React.RefObject<HTMLDivElement | null>, dir: 1 | -1) => {
+      const el = ref.current;
+      if (!el) return;
+      const amount = Math.max(320, Math.floor(el.clientWidth * 0.8));
+      el.scrollBy({ left: dir * amount, behavior: "smooth" });
+    },
+    [],
+  );
 
   useEffect(() => {
     const fetchSidebarPlaylists = async () => {
@@ -204,31 +299,54 @@ export default function NocturnPage() {
 
           {/* B) GENRE / MOOD CHIPS */}
           <div className="px-8 pt-5 pb-2 flex gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden">
-            {["All", "Energize", "Workout", "Relax", "Focus", "Commute", "Romance", "Sad", "Feel good", "Sleep"].map((chip, i) => (
-              <button
-                key={chip}
-                className={`px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 ${
-                  i === 0
-                    ? "bg-white text-black"
-                    : "bg-white/[0.08] text-white hover:bg-white/[0.14] border border-white/5"
-                }`}
-              >
-                {chip}
-              </button>
-            ))}
+            {MOODS.map((chip) => {
+              const active = selectedMood === chip;
+              return (
+                <button
+                  key={chip}
+                  onClick={() => {
+                    setSelectedMood(chip);
+                    // Re-shuffle so picks feel fresh on every mood change.
+                    setQuickPicksSeed(Math.floor(Math.random() * 1_000_000) + 1);
+                    setRecommendedSeed(Math.floor(Math.random() * 1_000_000) + 1);
+                  }}
+                  className={`px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 ${
+                    active
+                      ? "bg-white text-black"
+                      : "bg-white/[0.08] text-white hover:bg-white/[0.14] border border-white/5"
+                  }`}
+                >
+                  {chip}
+                </button>
+              );
+            })}
           </div>
 
-          {/* C) QUICK PICKS — 4 columns × 4 rows = 16 tracks (YouTube Music style) */}
-          {tracks.length > 0 && (
+          {/* C) QUICK PICKS — random 16 tracks; "More →" reshuffles */}
+          {quickPicks.length > 0 && (
             <div className="px-8 pt-6 pb-2">
               <div className="flex items-baseline justify-between mb-4">
-                <h2 className="text-2xl font-bold text-white tracking-tight">Quick picks</h2>
-                <button className="text-xs text-gray-400 hover:text-white font-medium uppercase tracking-wider transition-colors">
+                <h2 className="text-2xl font-bold text-white tracking-tight">
+                  Quick picks
+                  {selectedMood !== "All" && (
+                    <span className="ml-3 text-xs font-mono uppercase tracking-widest text-[#72fe8f]/80">
+                      · {selectedMood}
+                    </span>
+                  )}
+                </h2>
+                <button
+                  onClick={() =>
+                    setQuickPicksSeed(Math.floor(Math.random() * 1_000_000) + 1)
+                  }
+                  className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white font-medium uppercase tracking-wider transition-colors"
+                  title="Shuffle Quick picks"
+                >
+                  <Shuffle size={12} />
                   More →
                 </button>
               </div>
               <div className="grid grid-cols-4 gap-x-2 gap-y-1">
-                {tracks.slice(0, 16).map((track) => {
+                {quickPicks.map((track: any) => {
                   const isActive = currentTrack?.id === track.id;
                   return (
                     <button
@@ -272,8 +390,27 @@ export default function NocturnPage() {
                   <History size={18} className="text-[#72fe8f]" />
                   <h2 className="text-2xl font-bold text-white tracking-tight">Listen again</h2>
                 </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => scrollRow(listenAgainRef, -1)}
+                    className="w-8 h-8 rounded-full border border-white/10 bg-white/[0.04] text-gray-300 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center"
+                    aria-label="Scroll Listen again left"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <button
+                    onClick={() => scrollRow(listenAgainRef, 1)}
+                    className="w-8 h-8 rounded-full border border-white/10 bg-white/[0.04] text-gray-300 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center"
+                    aria-label="Scroll Listen again right"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-5 overflow-x-auto pb-3 [&::-webkit-scrollbar]:hidden snap-x">
+              <div
+                ref={listenAgainRef}
+                className="flex gap-5 overflow-x-auto pb-3 [&::-webkit-scrollbar]:hidden snap-x scroll-smooth"
+              >
                 {recentlyPlayedTracks.map((track: any) => (
                   <button
                     key={track.id}
@@ -309,16 +446,49 @@ export default function NocturnPage() {
           )}
 
           {/* D) RECOMMENDED FOR YOU — horizontal scroll cards */}
-          {tracks.length > 16 && (
+          {recommendedTracks.length > 0 && (
             <div className="px-8 pt-6 pb-2">
               <div className="flex items-baseline justify-between mb-4">
-                <h2 className="text-2xl font-bold text-white tracking-tight">Recommended for you</h2>
-                <button className="text-xs text-gray-400 hover:text-white font-medium uppercase tracking-wider transition-colors">
-                  More →
-                </button>
+                <h2 className="text-2xl font-bold text-white tracking-tight">
+                  Recommended for you
+                  {selectedMood !== "All" && (
+                    <span className="ml-3 text-xs font-mono uppercase tracking-widest text-[#72fe8f]/80">
+                      · {selectedMood}
+                    </span>
+                  )}
+                </h2>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => scrollRow(recommendedRef, -1)}
+                    className="w-8 h-8 rounded-full border border-white/10 bg-white/[0.04] text-gray-300 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center"
+                    aria-label="Scroll Recommended left"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <button
+                    onClick={() => scrollRow(recommendedRef, 1)}
+                    className="w-8 h-8 rounded-full border border-white/10 bg-white/[0.04] text-gray-300 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center"
+                    aria-label="Scroll Recommended right"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                  <button
+                    onClick={() =>
+                      setRecommendedSeed(
+                        Math.floor(Math.random() * 1_000_000) + 1,
+                      )
+                    }
+                    className="ml-1 text-xs text-gray-400 hover:text-white font-medium uppercase tracking-wider transition-colors"
+                  >
+                    More →
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-5 overflow-x-auto pb-3 [&::-webkit-scrollbar]:hidden snap-x">
-                {tracks.slice(16, 30).map((track) => (
+              <div
+                ref={recommendedRef}
+                className="flex gap-5 overflow-x-auto pb-3 [&::-webkit-scrollbar]:hidden snap-x scroll-smooth"
+              >
+                {recommendedTracks.map((track: any) => (
                   <button
                     key={track.id}
                     onClick={() => playTrackRef.current(track)}
