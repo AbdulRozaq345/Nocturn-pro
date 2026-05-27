@@ -68,61 +68,6 @@ export default function LoginModal() {
           )}
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-[10px] uppercase tracking-widest text-gray-500 ml-1 font-mono">
-              Email
-            </label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="email@kamu.com"
-              className="w-full bg-[#181818] border border-white/5 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#72fe8f]/40 transition-all font-mono text-white placeholder:text-gray-700 mt-1"
-            />
-          </div>
-
-          <div>
-            <label className="text-[10px] uppercase tracking-widest text-gray-500 ml-1 font-mono">
-              Password
-            </label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full bg-[#181818] border border-white/5 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#72fe8f]/40 transition-all font-mono text-white mt-1"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-[#72fe8f] text-black font-bold py-2.5 rounded-full hover:bg-[#5de87a] transition-all text-sm uppercase tracking-tighter disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
-          >
-            {loading ? (
-              <>
-                <div className="w-3 h-3 border-2 border-black/20 border-t-black rounded-full animate-spin" />
-                Processing...
-              </>
-            ) : (
-              "Masuk"
-            )}
-          </button>
-        </form>
-
-        {/* Divider */}
-        <div className="relative flex items-center py-5">
-          <div className="flex-grow border-t border-white/5" />
-          <span className="flex-shrink-0 mx-4 text-[9px] text-gray-600 uppercase tracking-widest font-mono">
-            atau
-          </span>
-          <div className="flex-grow border-t border-white/5" />
-        </div>
-
         {/* Google Button */}
         <button
           onClick={handleGoogleLogin}

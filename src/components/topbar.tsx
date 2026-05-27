@@ -77,12 +77,10 @@ export default function Topbar() {
                   </p>
                 </div>
                 <button
-                  onClick={() => {
-                    if (confirm("LOGOUT_SESSION? 🐈‍🤣")) logout();
-                  }}
+                  onClick={logout}
                   className="w-full text-left px-3 py-2 text-[10px] text-red-500 hover:bg-red-500/10 flex items-center gap-2 transition-colors font-mono font-bold"
                 >
-                  <LogOut size={12} /> TERMINATE_SESSION
+                  <LogOut size={12} /> LOGOUT
                 </button>
               </div>
             )}
@@ -119,12 +117,10 @@ export default function Topbar() {
                   </p>
                 </div>
                 <button
-                  onClick={() => {
-                    if (confirm("LOGOUT_SESSION? 🐈‍🤣")) logout();
-                  }}
+                  onClick={logout}
                   className="w-full text-left px-3 py-2 text-[10px] text-red-500 hover:bg-red-500/10 flex items-center gap-2 transition-colors font-mono font-bold"
                 >
-                  <LogOut size={12} /> TERMINATE_SESSION
+                  <LogOut size={12} /> LOGOUT
                 </button>
               </div>
             )}
