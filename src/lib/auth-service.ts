@@ -6,7 +6,7 @@ export const initCsrf = async () => {
 };
 
 export const loginWithGoogle = async () => {
-  window.location.href = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/google/redirect`;
+  window.location.href = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/google/redirect?origin=${encodeURIComponent(origin)}`;
 };
 
 
