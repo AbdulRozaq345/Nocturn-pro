@@ -6,6 +6,7 @@ export const initCsrf = async () => {
 };
 
 export const loginWithGoogle = async () => {
+  const origin = process.env.NEXT_PUBLIC_FRONTEND_URL || "https://nocturn.web.id";
   window.location.href = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/google/redirect?origin=${encodeURIComponent(origin)}`;
 };
 
